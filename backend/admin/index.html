@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Jyotish AI — Admin</title>
+<style>
+:root{--bg:#0a0a0f;--bg2:#12121a;--bg3:#1f1f2e;--gold:#d4a853;--violet:#8b6fe8;--teal:#2ec4b6;--rose:#e85d8b;--text:#ffffffe8;--muted:#ffffff8c;--border:#ffffff12}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:14px}
+
+/* ── LAYOUT ── */
+.shell{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;transition:transform .25s;z-index:50}
+.main{flex:1;overflow-y:auto;overflow-x:hidden}
+.page{padding:20px;display:none}
+.page.active{display:block}
+
+/* ── MOBILE SIDEBAR ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40}
+@media(max-width:768px){
+  .sidebar{position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .overlay.show{display:block}
+  .topbar{display:flex!important}
+}
+
+/* ── TOPBAR (mobile only) ── */
+.topbar{display:none;align-items:center;gap:12px;padding:12px 16px;
+  background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:30}
+.menu-btn{background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px}
+.topbar-title{font-size:15px;font-weight:600;color:var(--gold)}
+
+/* ── SIDEBAR CONTENT ── */
+.logo{padding:18px 16px 14px;border-bottom:1px solid var(--border)}
+.logo h1{font-size:16px;color:var(--gold);margin:0}
+.logo p{font-size:11px;color:var(--muted);margin:2px 0 0}
+.nav-scroll{flex:1;overflow-y:auto;padding:8px 0}
+.nav-section{padding:10px 16px 4px;font-size:9px;letter-spacing:.12em;color:rgba(255,255,255,.25);text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:13px;
+  color:var(--muted);cursor:pointer;border-left:2px solid transparent;transition:.15s;
+  user-select:none}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav-item.active{color:var(--gold);border-left-color:var(--gold);background:rgba(212,168,83,.08)}
+
+/* ── COMPONENTS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+.stat{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px}
+.stat .lbl{font-size:10px;color:var(--muted);margin-bottom:4px}
+.stat .val{font-size:24px;font-weight:700;color:var(--gold)}
+
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;
+  padding:16px;margin-bottom:14px;overflow-x:auto}
+
+.tbl-wrap{overflow-x:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:500px}
+th{text-align:left;padding:9px 10px;color:var(--muted);font-weight:500;
+  border-bottom:1px solid var(--border);font-size:10px;letter-spacing:.06em;white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+
+.btn{padding:8px 14px;border-radius:8px;border:none;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap;display:inline-flex;
+  align-items:center;gap:6px}
+.btn-gold{background:var(--gold);color:#0a0a0f}
+.btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border)}
+.btn-rose{background:rgba(232,93,139,.15);color:var(--rose);border:1px solid rgba(232,93,139,.3)}
+.btn-teal{background:rgba(46,196,182,.12);color:var(--teal);border:1px solid rgba(46,196,182,.25)}
+.btn-sm{padding:5px 10px;font-size:11px}
+
+input,select,textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);
+  border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:inherit;
+  outline:none;transition:.15s;-webkit-appearance:none;appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+select option{background:var(--bg2)}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+.form-full{grid-template-columns:1fr!important}
+label{font-size:10px;color:var(--muted);display:block;margin-bottom:3px;font-weight:500}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.bg{background:rgba(212,168,83,.15);color:var(--gold)}
+.bv{background:rgba(139,111,232,.15);color:#a98ef5}
+.bt{background:rgba(46,196,182,.12);color:var(--teal)}
+.br{background:rgba(232,93,139,.12);color:var(--rose)}
+.bm{background:rgba(255,255,255,.06);color:var(--muted)}
+
+h2{font-size:20px;font-weight:500;margin-bottom:4px}
+.subtitle{font-size:12px;color:var(--muted);margin-bottom:18px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;
+  flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.ph-left h2{margin-bottom:2px}
+
+.loading,.empty{color:var(--muted);text-align:center;padding:32px;font-size:13px}
+
+#toast{position:fixed;bottom:20px;right:20px;left:20px;max-width:360px;margin:0 auto;
+  padding:12px 18px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  font-size:13px;z-index:999;display:none;text-align:center}
+#toast.show{display:block}
+#toast.ok{border-color:var(--teal);color:var(--teal)}
+#toast.err{border-color:var(--rose);color:var(--rose)}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;
+  display:none;align-items:flex-end;justify-content:center;padding:0}
+.modal-bg.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px 16px 0 0;
+  padding:20px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto}
+@media(min-width:600px){
+  .modal-bg{align-items:center;padding:20px}
+  .modal{border-radius:16px}
+}
+.modal h3{font-size:17px;margin-bottom:16px;font-weight:500}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+
+.section-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:14px;margin-bottom:12px}
+.section-card h4{font-size:13px;color:var(--gold);margin-bottom:10px;font-weight:500}
+.field-row{display:flex;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.ftype{font-size:9px;padding:2px 6px;background:var(--violet);border-radius:4px;color:#fff;
+  flex-shrink:0;opacity:.8}
+.fname{font-size:12px;font-weight:500}
+.fdesc{font-size:10px;color:var(--muted);margin-top:2px}
+
+.search-bar{position:relative}
+.search-bar input{padding-left:32px}
+.search-bar::before{content:"🔍";position:absolute;left:10px;top:50%;
+  transform:translateY(-50%);font-size:12px;pointer-events:none}
+
+.action-row{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Steps list for admin guide */
+.steps{counter-reset:step;list-style:none;padding:0}
+.steps li{counter-increment:step;padding:10px 10px 10px 44px;position:relative;
+  border-left:2px solid var(--border);margin-left:16px;margin-bottom:6px;font-size:13px;
+  color:var(--text);line-height:1.6}
+.steps li::before{content:counter(step);position:absolute;left:-14px;top:10px;
+  width:24px;height:24px;background:var(--gold);color:#0a0a0f;border-radius:50%;
+  font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.steps li strong{color:var(--gold)}
+.steps li code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:4px;
+  font-family:monospace;font-size:12px}
+</style>
+</head>
+<body>
+<!-- Mobile overlay -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<div class="shell">
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="logo">
+    <h1>✦ Jyotish AI</h1>
+    <p>Admin Portal</p>
+  </div>
+  <div class="nav-scroll">
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" onclick="nav('dashboard',this)">📊 Dashboard</div>
+    <div class="nav-section">Users</div>
+    <div class="nav-item" onclick="nav('users',this)">👥 All Users</div>
+    <div class="nav-item" onclick="nav('adduser',this)">➕ Add User</div>
+    <div class="nav-section">Notifications</div>
+    <div class="nav-item" onclick="nav('push',this)">🔔 Push Notifications</div>
+    <div class="nav-section">Database</div>
+    <div class="nav-item" onclick="nav('schema',this)">🗄️ DB Schema</div>
+    <div class="nav-section">Setup</div>
+    <div class="nav-item" onclick="nav('guide',this)">📖 How to Use</div>
+    <div class="nav-item" onclick="nav('settings',this)">⚙️ Settings</div>
+  </div>
+</nav>
+
+<div class="main">
+  <!-- Mobile topbar -->
+  <div class="topbar" id="topbar">
+    <button class="menu-btn" onclick="openSidebar()">☰</button>
+    <span class="topbar-title">✦ Jyotish AI Admin</span>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="p-dashboard">
+    <div class="ph">
+      <div class="ph-left"><h2>Dashboard</h2><p class="subtitle">System overview</p></div>
+      <button class="btn btn-ghost" onclick="loadDashboard()">↻ Refresh</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><div class="lbl">Total Users</div><div class="val" id="s-total">—</div></div>
+      <div class="stat"><div class="lbl">Premium</div><div class="val" style="color:var(--violet)" id="s-prem">—</div></div>
+      <div class="stat"><div class="lbl">Admin</div><div class="val" style="color:var(--teal)" id="s-admin">—</div></div>
+      <div class="stat"><div class="lbl">Active</div><div class="val" id="s-active">—</div></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:600;color:var(--gold);margin-bottom:12px">Recent Users</div>
+      <div class="tbl-wrap"><table id="dash-tbl"><tr><td class="loading">Loading…</td></tr></table></div>
+    </div>
+  </div>
+
+  <!-- USERS LIST -->
+  <div class="page" id="p-users">
+    <div class="ph">
+      <div class="ph-left"><h2>All Users</h2><p class="subtitle">Manage accounts and access levels</p></div>
+      <button class="btn btn-gold" onclick="nav('adduser',null)">+ Add User</button>
+    </div>
+    <div class="card">
+      <div class="search-bar" style="margin-bottom:12px">
+        <input id="search" placeholder="Search by email or name…" oninput="filterUsers()">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Email</th><th>Access</th><th>Status</th><th>Joined</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="users-body"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD USER -->
+  <div class="page" id="p-adduser">
+    <h2>Add New User</h2><p class="subtitle">Create a user account manually</p>
+    <div class="card" style="max-width:560px">
+      <div class="form-row">
+        <div><label>Full Name *</label><input id="nu-name" placeholder="Priya Sharma"></div>
+        <div><label>Email *</label><input id="nu-email" type="email" placeholder="priya@email.com"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Password *</label><input id="nu-pass" type="password" placeholder="Min 8 chars"></div>
+        <div><label>Phone</label><input id="nu-phone" placeholder="+91 9999999999"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Access Level *</label>
+          <select id="nu-access">
+            <option value="free">Free (basic)</option>
+            <option value="premium">Premium (all features)</option>
+            <option value="admin">Admin (premium + admin panel)</option>
+          </select>
+        </div>
+        <div><label>Account Status</label>
+          <select id="nu-status"><option value="true">Active</option><option value="false">Inactive</option></select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+        <button class="btn btn-gold" id="add-btn" onclick="addUser()">Create User</button>
+        <button class="btn btn-ghost" onclick="nav('users',null)">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PUSH NOTIFICATIONS -->
+  <div class="page" id="p-push">
+    <h2>Push Notifications</h2><p class="subtitle">Send Firebase push to your users</p>
+    <div class="card" style="max-width:600px">
+      <div class="form-row form-full"><div><label>Target Audience</label>
+        <select id="nt" onchange="document.getElementById('topic-row').style.display=this.value=='topic'?'block':'none'">
+          <option value="all">All Users</option>
+          <option value="premium">Premium Only</option>
+          <option value="free">Free Only</option>
+          <option value="topic">By Topic</option>
+        </select>
+      </div></div>
+      <div id="topic-row" style="display:none;margin-bottom:10px">
+        <label>Topic Name</label><input id="ntopic" placeholder="daily_horoscope">
+      </div>
+      <div class="form-row form-full"><div><label>Title *</label>
+        <input id="ntitle" placeholder="Your Daily Horoscope is Ready ✦">
+      </div></div>
+      <div class="form-row form-full"><div><label>Message *</label>
+        <textarea id="nbody" rows="3" placeholder="Today the stars bring…"></textarea>
+      </div></div>
+      <div class="form-row">
+        <div><label>Deep Link</label><input id="nlink" placeholder="jyotish://horoscope"></div>
+        <div><label>Image URL</label><input id="nimg" placeholder="https://…"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px">
+        <button class="btn btn-gold" id="notif-btn" onclick="sendNotif()">Send Notification</button>
+        <span id="nstatus" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+    </div>
+    <div class="card" style="max-width:600px">
+      <div style="font-size:13px;font-weight:600;color:var(--gold);margin-bottom:4px">Daily Horoscope Schedule</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Automatic morning notification at 7:00 AM IST</div>
+      <div style="font-size:12px;color:var(--text);line-height:1.8">
+        ✓ Scheduled automatically when user logs in<br>
+        ✓ Uses flutter_local_notifications<br>
+        ✓ Runs daily at 7:00 AM IST<br>
+        ✓ Message: "Your Daily Horoscope is Ready ✦"
+      </div>
+    </div>
+  </div>
+
+  <!-- DB SCHEMA -->
+  <div class="page" id="p-schema">
+    <h2>Database Schema</h2><p class="subtitle">Firestore collection structure</p>
+    <div class="section-card"><h4>🧑 users</h4>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">id</span><span class="fdesc">UUID — document ID</span></div>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">email</span><span class="fdesc">Unique, lowercase</span></div>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">full_name</span></div>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">phone</span><span class="fdesc">Optional</span></div>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">hashed_password</span><span class="fdesc">bcrypt</span></div>
+      <div class="field-row"><span class="ftype">bool</span><span class="fname">is_active</span></div>
+      <div class="field-row"><span class="ftype">bool</span><span class="fname">is_premium</span></div>
+      <div class="field-row"><span class="ftype">bool</span><span class="fname">is_admin</span></div>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">fcm_token</span><span class="fdesc">Firebase push token</span></div>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">google_uid</span><span class="fdesc">Google Sign-In UID</span></div>
+      <div class="field-row"><span class="ftype">map</span><span class="fname">birth_details</span><span class="fdesc">name, year, month, day, hour, minute, lat, lng</span></div>
+      <div class="field-row"><span class="ftype">timestamp</span><span class="fname">created_at / updated_at</span></div>
+    </div>
+    <div class="section-card"><h4>📱 notifications</h4>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">id / title / body / target</span></div>
+      <div class="field-row"><span class="ftype">int</span><span class="fname">sent_count</span></div>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">status</span><span class="fdesc">sent | failed</span></div>
+    </div>
+    <div class="section-card"><h4>💬 kundli_cache</h4>
+      <div class="field-row"><span class="ftype">string</span><span class="fname">user_id</span></div>
+      <div class="field-row"><span class="ftype">map</span><span class="fname">birth_details / chart_data</span></div>
+      <div class="field-row"><span class="ftype">timestamp</span><span class="fname">cached_at</span></div>
+    </div>
+  </div>
+
+  <!-- HOW TO USE GUIDE -->
+  <div class="page" id="p-guide">
+    <h2>How to Use Admin Portal</h2><p class="subtitle">Step-by-step guide for managing users</p>
+
+    <div class="section-card">
+      <h4>Step 1 — Connect to backend</h4>
+      <ol class="steps">
+        <li>Go to <strong>Settings</strong> (bottom of sidebar)</li>
+        <li>Enter Backend URL: <code>https://jyotish-ai-4xw2.onrender.com</code></li>
+        <li>Enter your email and password under "Admin Login"</li>
+        <li>Click <strong>Login &amp; Save Token</strong> — this gets your JWT</li>
+        <li>Click <strong>Test Connection</strong> to verify it works</li>
+      </ol>
+    </div>
+
+    <div class="section-card">
+      <h4>Step 2 — Add a new user</h4>
+      <ol class="steps">
+        <li>Click <strong>Add User</strong> in the sidebar</li>
+        <li>Enter <strong>Full Name</strong> and <strong>Email</strong></li>
+        <li>Set a strong <strong>Password</strong> (min 8 chars)</li>
+        <li>Choose <strong>Access Level</strong>:
+          <br>• <strong>Free</strong> — basic horoscope only
+          <br>• <strong>Premium</strong> — Kundli, AI Chat, Matchmaking, Muhurtham
+          <br>• <strong>Admin</strong> — everything + admin portal access
+        </li>
+        <li>Set Status to <strong>Active</strong> and click <strong>Create User</strong></li>
+        <li>Share credentials with the user</li>
+      </ol>
+    </div>
+
+    <div class="section-card">
+      <h4>Step 3 — Change user access level</h4>
+      <ol class="steps">
+        <li>Go to <strong>All Users</strong></li>
+        <li>Find the user and click <strong>Edit</strong></li>
+        <li>Change <strong>Access Level</strong> dropdown:
+          <br>• Free → Premium: unlocks all features
+          <br>• Premium → Admin: gives portal access
+          <br>• Admin → Free: removes all special access
+        </li>
+        <li>Click <strong>Save Changes</strong></li>
+        <li>User gets new access on next app launch</li>
+      </ol>
+    </div>
+
+    <div class="section-card">
+      <h4>Step 4 — Send a push notification</h4>
+      <ol class="steps">
+        <li>Go to <strong>Push Notifications</strong></li>
+        <li>Select target: All / Premium / Free users</li>
+        <li>Enter <strong>Title</strong> and <strong>Message</strong></li>
+        <li>Optionally add a deep link (e.g. <code>jyotish://horoscope</code>)</li>
+        <li>Click <strong>Send Notification</strong></li>
+        <li>Result shows how many users were reached</li>
+        <li>Note: Users must have opened the app at least once to have an FCM token</li>
+      </ol>
+    </div>
+
+    <div class="section-card">
+      <h4>Step 5 — Delete a user</h4>
+      <ol class="steps">
+        <li>Go to <strong>All Users</strong></li>
+        <li>Find the user and click <strong>Delete</strong></li>
+        <li>Confirm in the prompt</li>
+        <li>User is permanently removed from Firestore</li>
+        <li>Note: This does not revoke active JWT tokens immediately</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="p-settings">
+    <h2>Settings</h2><p class="subtitle">Connect admin portal to backend</p>
+    <div class="card" style="max-width:520px">
+      <div style="font-size:13px;font-weight:600;color:var(--gold);margin-bottom:12px">Backend Connection</div>
+      <div style="margin-bottom:10px"><label>Backend URL</label>
+        <input id="cfg-url" placeholder="https://jyotish-ai-4xw2.onrender.com">
+      </div>
+      <div style="margin-bottom:10px"><label>JWT Token (auto-filled after login)</label>
+        <input id="cfg-token" type="password" placeholder="Paste token or use login below">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-gold" onclick="saveSettings()">Save Settings</button>
+        <button class="btn btn-teal" onclick="testConn()">Test Connection</button>
+        <span id="conn-st" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+    </div>
+    <div class="card" style="max-width:520px">
+      <div style="font-size:13px;font-weight:600;color:var(--gold);margin-bottom:12px">Admin Login</div>
+      <div class="form-row">
+        <div><label>Email</label><input id="lg-em" placeholder="atchayam@jyotishai.app"></div>
+        <div><label>Password</label><input id="lg-pw" type="password" placeholder="password"></div>
+      </div>
+      <button class="btn btn-gold" onclick="adminLogin()">Login &amp; Save Token</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal">
+    <h3>Edit User</h3>
+    <input type="hidden" id="eu-id">
+    <div class="form-row">
+      <div><label>Full Name</label><input id="eu-name"></div>
+      <div><label>Email</label><input id="eu-email" type="email"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Phone</label><input id="eu-phone"></div>
+      <div><label>New Password (blank = keep)</label><input id="eu-pass" type="password"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Access Level</label>
+        <select id="eu-access"><option value="free">Free</option><option value="premium">Premium</option><option value="admin">Admin</option></select>
+      </div>
+      <div><label>Status</label>
+        <select id="eu-status"><option value="true">Active</option><option value="false">Inactive</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveUser()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let cfg = JSON.parse(localStorage.getItem("jadm")||"{}");
+let API = cfg.url || "https://jyotish-ai-4xw2.onrender.com";
+let TOKEN = cfg.token || "";
+let allUsers = [];
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function openSidebar(){
+  document.getElementById("sidebar").classList.add("open");
+  document.getElementById("overlay").classList.add("show");
+}
+function closeSidebar(){
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("overlay").classList.remove("show");
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function nav(id, el) {
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+  document.getElementById("p-"+id).classList.add("active");
+  if(el) el.classList.add("active");
+  else {
+    document.querySelectorAll(".nav-item").forEach(n=>{
+      if(n.getAttribute("onclick")&&n.getAttribute("onclick").includes("'"+id+"'"))
+        n.classList.add("active");
+    });
+  }
+  closeSidebar();
+  if(id==="dashboard") loadDashboard();
+  if(id==="users") loadUsers();
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+function headers(){return{"Content-Type":"application/json",...(TOKEN?{"Authorization":"Bearer "+TOKEN}:{})};}
+async function api(method,path,body){
+  const r=await fetch(API+path,{method,headers:headers(),body:body?JSON.stringify(body):undefined});
+  const j=await r.json();
+  if(!r.ok) throw new Error(j.detail||JSON.stringify(j));
+  return j;
+}
+function toast(msg,ok=true){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.className="show "+(ok?"ok":"err");
+  setTimeout(()=>t.className="",3500);
+}
+
+// ── Badges ───────────────────────────────────────────────────────────────────
+function accBadge(u){
+  if(u.is_admin) return '<span class="badge bt">Admin</span>';
+  if(u.is_premium) return '<span class="badge bv">Premium</span>';
+  return '<span class="badge bm">Free</span>';
+}
+function stBadge(u){
+  return u.is_active?'<span class="badge bt">Active</span>':'<span class="badge br">Inactive</span>';
+}
+function fmt(d){if(!d)return"—";return new Date(d).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard(){
+  try{
+    const u=await api("GET","/api/v1/admin/users");allUsers=u;
+    document.getElementById("s-total").textContent=u.length;
+    document.getElementById("s-prem").textContent=u.filter(x=>x.is_premium).length;
+    document.getElementById("s-admin").textContent=u.filter(x=>x.is_admin).length;
+    document.getElementById("s-active").textContent=u.filter(x=>x.is_active).length;
+    const r=u.slice(-5).reverse();
+    document.getElementById("dash-tbl").innerHTML=
+      '<thead><tr><th>Name</th><th>Email</th><th>Access</th><th>Joined</th></tr></thead><tbody>'+
+      r.map(x=>`<tr><td>${x.full_name||"—"}</td><td style="color:var(--gold)">${x.email}</td><td>${accBadge(x)}</td><td>${fmt(x.created_at)}</td></tr>`).join("")+
+      "</tbody>";
+  }catch(e){toast("Cannot load — check Settings","err");}
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+async function loadUsers(){
+  document.getElementById("users-body").innerHTML='<tr><td colspan="6" class="loading">Loading…</td></tr>';
+  try{const u=await api("GET","/api/v1/admin/users");allUsers=u;renderUsers(u);}
+  catch(e){document.getElementById("users-body").innerHTML='<tr><td colspan="6" class="empty">Error — check Settings</td></tr>';}
+}
+function renderUsers(users){
+  if(!users.length){document.getElementById("users-body").innerHTML='<tr><td colspan="6" class="empty">No users found</td></tr>';return;}
+  document.getElementById("users-body").innerHTML=users.map(u=>`<tr>
+    <td><b>${u.full_name||"—"}</b></td>
+    <td style="color:var(--gold);word-break:break-all">${u.email}</td>
+    <td>${accBadge(u)}</td><td>${stBadge(u)}</td><td>${fmt(u.created_at)}</td>
+    <td><div class="action-row">
+      <button class="btn btn-ghost btn-sm" onclick="editUser('${u.id}')">Edit</button>
+      <button class="btn btn-rose btn-sm" onclick="deleteUser('${u.id}','${u.email}')">Del</button>
+    </div></td>
+  </tr>`).join("");
+}
+function filterUsers(){
+  const q=document.getElementById("search").value.toLowerCase();
+  renderUsers(allUsers.filter(u=>(u.email||"").toLowerCase().includes(q)||(u.full_name||"").toLowerCase().includes(q)));
+}
+
+// ── Add User ──────────────────────────────────────────────────────────────────
+async function addUser(){
+  const name=document.getElementById("nu-name").value.trim();
+  const email=document.getElementById("nu-email").value.trim();
+  const pass=document.getElementById("nu-pass").value;
+  const phone=document.getElementById("nu-phone").value.trim();
+  const access=document.getElementById("nu-access").value;
+  const active=document.getElementById("nu-status").value==="true";
+  if(!name||!email||!pass){toast("Name, email and password required","err");return;}
+  document.getElementById("add-btn").disabled=true;
+  try{
+    await api("POST","/api/v1/admin/users",{
+      full_name:name,email,password:pass,phone:phone||null,
+      is_premium:access!=="free",is_admin:access==="admin",is_active:active
+    });
+    toast("✅ User created: "+email);
+    ["nu-name","nu-email","nu-pass","nu-phone"].forEach(id=>document.getElementById(id).value="");
+    nav("users",null);
+  }catch(e){toast(e.message,"err");}
+  finally{document.getElementById("add-btn").disabled=false;}
+}
+
+// ── Edit / Delete ─────────────────────────────────────────────────────────────
+function editUser(id){
+  const u=allUsers.find(x=>x.id===id);if(!u)return;
+  document.getElementById("eu-id").value=u.id;
+  document.getElementById("eu-name").value=u.full_name||"";
+  document.getElementById("eu-email").value=u.email||"";
+  document.getElementById("eu-phone").value=u.phone||"";
+  document.getElementById("eu-pass").value="";
+  document.getElementById("eu-access").value=u.is_admin?"admin":u.is_premium?"premium":"free";
+  document.getElementById("eu-status").value=u.is_active?"true":"false";
+  document.getElementById("edit-modal").classList.add("show");
+}
+function closeModal(){document.getElementById("edit-modal").classList.remove("show");}
+async function saveUser(){
+  const id=document.getElementById("eu-id").value;
+  const access=document.getElementById("eu-access").value;
+  const body={
+    full_name:document.getElementById("eu-name").value,
+    email:document.getElementById("eu-email").value,
+    phone:document.getElementById("eu-phone").value||null,
+    is_premium:access!=="free",is_admin:access==="admin",
+    is_active:document.getElementById("eu-status").value==="true",
+  };
+  const pw=document.getElementById("eu-pass").value;if(pw)body.password=pw;
+  try{await api("PUT","/api/v1/admin/users/"+id,body);toast("✅ User updated");closeModal();loadUsers();}
+  catch(e){toast(e.message,"err");}
+}
+async function deleteUser(id,email){
+  if(!confirm("Delete "+email+"? This cannot be undone."))return;
+  try{await api("DELETE","/api/v1/admin/users/"+id);toast("Deleted: "+email);loadUsers();}
+  catch(e){toast(e.message,"err");}
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+async function sendNotif(){
+  const title=document.getElementById("ntitle").value.trim();
+  const body=document.getElementById("nbody").value.trim();
+  if(!title||!body){toast("Title and message required","err");return;}
+  document.getElementById("notif-btn").disabled=true;
+  document.getElementById("nstatus").textContent="Sending…";
+  try{
+    const r=await api("POST","/api/v1/admin/notifications/send",{
+      title,body,target:document.getElementById("nt").value,
+      topic:document.getElementById("ntopic").value||null,
+      deep_link:document.getElementById("nlink").value||null,
+      image_url:document.getElementById("nimg").value||null,
+    });
+    toast("✅ Sent to "+r.sent_count+" users");
+    document.getElementById("nstatus").textContent="Sent to "+r.sent_count+" users";
+  }catch(e){toast(e.message,"err");document.getElementById("nstatus").textContent="Failed";}
+  finally{document.getElementById("notif-btn").disabled=false;}
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function saveSettings(){
+  API=document.getElementById("cfg-url").value||API;
+  TOKEN=document.getElementById("cfg-token").value||TOKEN;
+  localStorage.setItem("jadm",JSON.stringify({url:API,token:TOKEN}));
+  toast("Settings saved");
+}
+async function testConn(){
+  document.getElementById("conn-st").textContent="Testing…";
+  try{
+    const r=await fetch(API+"/health");const j=await r.json();
+    document.getElementById("conn-st").textContent="✓ "+j.app+" v"+j.version;
+    document.getElementById("conn-st").style.color="var(--teal)";
+  }catch{
+    document.getElementById("conn-st").textContent="✗ Cannot reach server";
+    document.getElementById("conn-st").style.color="var(--rose)";
+  }
+}
+async function adminLogin(){
+  const email=document.getElementById("lg-em").value;
+  const pass=document.getElementById("lg-pw").value;
+  try{
+    const r=await fetch(API+"/api/v1/auth/login",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email,password:pass})
+    });
+    const j=await r.json();if(!r.ok)throw new Error(j.detail);
+    TOKEN=j.access_token;
+    document.getElementById("cfg-token").value=TOKEN;
+    localStorage.setItem("jadm",JSON.stringify({url:API,token:TOKEN}));
+    toast("✅ Logged in as "+j.user.full_name);
+  }catch(e){toast(e.message,"err");}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded",()=>{
+  if(cfg.url)document.getElementById("cfg-url").value=cfg.url;
+  if(cfg.token)document.getElementById("cfg-token").value=cfg.token;
+  loadDashboard();
+});
+</script>
+</body>
+</html>

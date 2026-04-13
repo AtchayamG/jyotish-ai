@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: jyotish-ai-backend
+    env: python
+    region: singapore
+    plan: free
+
+    # Build command: --only-binary=:all: forces pip to use pre-built wheels only
+    # If no wheel exists for the package, pip will SKIP it rather than compile
+    # This is the safest approach for Render's read-only Rust filesystem
+    buildCommand: |
+      pip install --upgrade pip &&
+      pip install --only-binary=:all: pydantic pydantic-core pydantic-settings &&
+      pip install -r requirements.txt
+
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 2
+
+    envVars:
+      # ── CRITICAL: Force Python 3.11 via env var ────────────────────────────
+      # Belt-and-suspenders with .python-version file in repo root
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+      # ── App ────────────────────────────────────────────────────────────────
+      - key: APP_NAME
+        value: JyotishAI
+      - key: APP_ENV
+        value: production
+      - key: APP_VERSION
+        value: 1.0.0
+      - key: DEBUG
+        value: false
+      - key: ALLOWED_ORIGINS
+        value: "*"
+
+      # ── Security ───────────────────────────────────────────────────────────
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 60
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: 30
+
+      # ── Firebase ───────────────────────────────────────────────────────────
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CREDENTIALS_JSON_CONTENT
+        sync: false
+
+      # ── Astrology APIs ─────────────────────────────────────────────────────
+      - key: PROKERALA_CLIENT_ID
+        sync: false
+      - key: PROKERALA_CLIENT_SECRET
+        sync: false
+
+      # ── AI ─────────────────────────────────────────────────────────────────
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # ── Payments ───────────────────────────────────────────────────────────
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false

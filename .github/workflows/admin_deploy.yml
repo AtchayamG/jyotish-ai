@@ -1,0 +1,35 @@
+name: Deploy Admin Portal to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "backend/admin/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "admin-pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload admin portal
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: backend/admin
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

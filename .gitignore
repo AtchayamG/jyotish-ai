@@ -1,0 +1,54 @@
+# Root .gitignore for jyotish-ai repo
+
+# ── Secrets (NEVER commit these) ──────────────────────────────────────────────
+*.env
+.env
+*.pem
+google-services.json
+GoogleService-Info.plist
+firebase-credentials.json
+
+# ── Flutter ───────────────────────────────────────────────────────────────────
+flutter_app/build/
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/pubspec.lock
+
+# ── Android build artifacts ───────────────────────────────────────────────────
+flutter_app/android/.gradle/
+flutter_app/android/build/
+flutter_app/android/app/build/
+flutter_app/android/local.properties
+
+# ── The NESTED flutter project inside android/ (delete this folder entirely) ──
+flutter_app/android/android/
+flutter_app/android/ios/
+flutter_app/android/linux/
+flutter_app/android/macos/
+flutter_app/android/windows/
+flutter_app/android/web/
+flutter_app/android/lib/
+flutter_app/android/test/
+flutter_app/android/pubspec.yaml
+flutter_app/android/pubspec.lock
+flutter_app/android/README.md
+flutter_app/android/analysis_options.yaml
+flutter_app/android/.metadata
+
+# ── Python / Backend ──────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+.pytest_cache/
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
