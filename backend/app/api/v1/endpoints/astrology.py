@@ -100,8 +100,8 @@ async def get_horoscope_by_sign(
 @router.get("/my-horoscope", response_model=HoroscopeResponse)
 async def my_horoscope(
     user: CurrentUser,
-    htype: HoroscopeType = HoroscopeType.DAILY,
     svc: Annotated[AstrologyService, Depends(_astro_service)],
+    htype: HoroscopeType = HoroscopeType.DAILY,
 ):
     """
     Personalised horoscope using the user's stored birth details.

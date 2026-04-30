@@ -35,12 +35,10 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-fix: seed endpoint updates existing user to admin; Places CORS proxy
+fix: SyntaxError in astrology.py - non-default arg after default arg
 
-- Seed endpoint now promotes existing atchayam@jyotishai.app to is_admin=true
-- Add backend places proxy: /api/v1/places/autocomplete + /api/v1/places/details
-- PlacesService calls backend instead of Google Maps directly (fixes CORS on web)
-- Add GOOGLE_MAPS_API_KEY to backend Settings config
+- my_horoscope: move svc (Depends) before htype (has default) to fix Python syntax
+- Fixes backend startup crash: SyntaxError non-default argument follows default argument
 "@
 
 git commit -m $msg
