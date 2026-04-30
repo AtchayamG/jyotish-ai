@@ -20,14 +20,30 @@ async def seed_admin(x: str = Header(..., alias="X-Seed-Token")):
         found = await db.get_where("email","==","atchayam@jyotishai.app",limit=1)
         if found:
             uid = found[0].get("id", "?")
-            # Ensure is_admin + is_premium flags are set even if account pre-existed
-            await db.update(uid, {
+            # Use set(merge=True) to ensure fields are written even if update() is skipped
+            from app.core.firebase import get_db
+            from datetime import datetime, timezone
+            import asyncio
+            fs = get_db()
+            loop = asyncio.get_running_loop()
+            patch = {
                 "is_admin": True, "is_premium": True, "is_active": True,
                 "hashed_password": hash_password("Admin123"),
-            })
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await loop.run_in_executor(
+                None,
+                lambda: fs.collection("users").document(uid).set(patch, merge=True)
+            )
+            # Verify it was written
+            import asyncio as _a
+            doc = await loop.run_in_executor(
+                None, lambda: fs.collection("users").document(uid).get()
+            )
+            actual = doc.to_dict() or {}
             return SeedResp(status="updated", user_id=uid,
                 email="atchayam@jyotishai.app",
-                message="Admin flags set. Login: atchayam@jyotishai.app / Admin123")
+                message=f"Done. is_admin={actual.get('is_admin')}. Login: atchayam@jyotishai.app / Admin123")
         uid = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
         await db.create(uid, {

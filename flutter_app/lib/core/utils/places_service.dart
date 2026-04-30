@@ -41,7 +41,7 @@ class PlacesService {
     try {
       final resp = await _dio.get(
         ApiConstants.placesAutocomplete,
-        queryParameters: {'input': input.trim()},
+        queryParameters: {'q': input.trim()},
       );
       final list = resp.data as List<dynamic>;
       return list

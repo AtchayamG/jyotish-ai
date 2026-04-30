@@ -35,10 +35,12 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-fix: SyntaxError in astrology.py - non-default arg after default arg
+fix: seed uses Firestore set(merge=True) to reliably set is_admin; places improvements
 
-- my_horoscope: move svc (Depends) before htype (has default) to fix Python syntax
-- Fixes backend startup crash: SyntaxError non-default argument follows default argument
+- seed.py: use fs.collection().document().set(patch, merge=True) directly instead
+  of db.update() wrapper - verifies write and returns actual is_admin value
+- places.py: rename param input->q, soft fallback for timezone, better error logs
+- places_service.dart: update query param key input->q
 "@
 
 git commit -m $msg
