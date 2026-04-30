@@ -16,6 +16,10 @@ class ApiConstants {
   // ── User Profile ──────────────────────────────────────────────────────────
   static const String userProfile    = "/api/v1/user/profile";
 
+  // ── Places proxy ─────────────────────────────────────────────────────────
+  static const String placesAutocomplete = "/api/v1/places/autocomplete";
+  static const String placesDetails      = "/api/v1/places/details";
+
   // ── Astrology ─────────────────────────────────────────────────────────────
   static const String kundli         = "/api/v1/astrology/kundli";
   static const String myKundli       = "/api/v1/astrology/my-kundli";

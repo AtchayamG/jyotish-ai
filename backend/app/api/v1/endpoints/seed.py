@@ -19,8 +19,15 @@ async def seed_admin(x: str = Header(..., alias="X-Seed-Token")):
         db = FirestoreCollection("users")
         found = await db.get_where("email","==","atchayam@jyotishai.app",limit=1)
         if found:
-            return SeedResp(status="already_exists", user_id=found[0].get("id","?"),
-                email="atchayam@jyotishai.app", message="Exists. Password: Admin123")
+            uid = found[0].get("id", "?")
+            # Ensure is_admin + is_premium flags are set even if account pre-existed
+            await db.update(uid, {
+                "is_admin": True, "is_premium": True, "is_active": True,
+                "hashed_password": hash_password("Admin123"),
+            })
+            return SeedResp(status="updated", user_id=uid,
+                email="atchayam@jyotishai.app",
+                message="Admin flags set. Login: atchayam@jyotishai.app / Admin123")
         uid = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
         await db.create(uid, {

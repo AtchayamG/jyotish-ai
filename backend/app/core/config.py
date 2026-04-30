@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
+    # ── Google Maps ──────────────────────────────────────
+    GOOGLE_MAPS_API_KEY: str = ""
+
     # ── Payments ─────────────────────────────────────────
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""

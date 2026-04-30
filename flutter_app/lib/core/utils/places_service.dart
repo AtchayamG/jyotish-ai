@@ -1,9 +1,13 @@
 // lib/core/utils/places_service.dart
-// Google Places Autocomplete + Place Details + Timezone — via REST (no plugin needed).
-// Uses the same Dio instance pattern as the rest of the app.
+//
+// Proxies Google Places calls through the Jyotish AI backend to avoid
+// CORS issues on Flutter Web (GitHub Pages / any browser context).
+// Backend endpoints: GET /api/v1/places/autocomplete  and  /api/v1/places/details
+// The backend holds the actual GOOGLE_MAPS_API_KEY env var.
 
 import 'dart:async';
 import 'package:dio/dio.dart';
+import '../api/api_constants.dart';
 
 class PlacePrediction {
   final String description;
@@ -25,11 +29,8 @@ class PlaceDetails {
 }
 
 class PlacesService {
-  // Set your Google Maps API key here (or in AppConstants and reference it).
-  // Enable: Places API + Geocoding API + Time Zone API in Google Cloud Console.
-  static const String _apiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
-
   final Dio _dio = Dio(BaseOptions(
+    baseUrl: ApiConstants.baseUrl,
     connectTimeout: const Duration(seconds: 8),
     receiveTimeout: const Duration(seconds: 10),
   ));
@@ -39,20 +40,11 @@ class PlacesService {
     if (input.trim().length < 3) return [];
     try {
       final resp = await _dio.get(
-        'https://maps.googleapis.com/maps/api/place/autocomplete/json',
-        queryParameters: {
-          'input': input.trim(),
-          'key': _apiKey,
-          'types': '(cities)',
-          'language': 'en',
-        },
+        ApiConstants.placesAutocomplete,
+        queryParameters: {'input': input.trim()},
       );
-      if (resp.data['status'] != 'OK' && resp.data['status'] != 'ZERO_RESULTS') {
-        return [];
-      }
-      final predictions = resp.data['predictions'] as List<dynamic>;
-      return predictions
-          .take(5)
+      final list = resp.data as List<dynamic>;
+      return list
           .map((p) => PlacePrediction(
                 description: p['description'] as String,
                 placeId: p['place_id'] as String,
@@ -66,42 +58,16 @@ class PlacesService {
   /// Fetches lat/lng and UTC-offset timezone for the selected [placeId].
   Future<PlaceDetails?> getDetails(String placeId) async {
     try {
-      // 1. Geometry (lat/lng + name)
-      final detailsResp = await _dio.get(
-        'https://maps.googleapis.com/maps/api/place/details/json',
-        queryParameters: {
-          'place_id': placeId,
-          'fields': 'name,geometry',
-          'key': _apiKey,
-        },
+      final resp = await _dio.get(
+        ApiConstants.placesDetails,
+        queryParameters: {'place_id': placeId},
       );
-      final result = detailsResp.data['result'] as Map<String, dynamic>;
-      final location =
-          result['geometry']['location'] as Map<String, dynamic>;
-      final lat = (location['lat'] as num).toDouble();
-      final lng = (location['lng'] as num).toDouble();
-      final name = result['name'] as String? ?? '';
-
-      // 2. Timezone (UTC offset)
-      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final tzResp = await _dio.get(
-        'https://maps.googleapis.com/maps/api/timezone/json',
-        queryParameters: {
-          'location': '$lat,$lng',
-          'timestamp': timestamp,
-          'key': _apiKey,
-        },
-      );
-      final rawOffset = (tzResp.data['rawOffset'] as num? ?? 0).toDouble();
-      final dstOffset = (tzResp.data['dstOffset'] as num? ?? 0).toDouble();
-      // rawOffset + dstOffset gives total seconds offset; divide by 3600 for hours
-      final tzHours = (rawOffset + dstOffset) / 3600;
-
+      final d = resp.data as Map<String, dynamic>;
       return PlaceDetails(
-        name: name,
-        latitude: lat,
-        longitude: lng,
-        timezone: tzHours,
+        name:      d['name'] as String? ?? '',
+        latitude:  (d['latitude']  as num).toDouble(),
+        longitude: (d['longitude'] as num).toDouble(),
+        timezone:  (d['timezone']  as num).toDouble(),
       );
     } catch (_) {
       return null;

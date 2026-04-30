@@ -35,10 +35,12 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-fix: AppSpacing.x2l -> xxl; add error_page import in home_page
+fix: seed endpoint updates existing user to admin; Places CORS proxy
 
-- profile_complete_page: AppSpacing.x2l does not exist, replaced with xxl
-- home_page: InlineError is in error_page.dart, add missing import
+- Seed endpoint now promotes existing atchayam@jyotishai.app to is_admin=true
+- Add backend places proxy: /api/v1/places/autocomplete + /api/v1/places/details
+- PlacesService calls backend instead of Google Maps directly (fixes CORS on web)
+- Add GOOGLE_MAPS_API_KEY to backend Settings config
 "@
 
 git commit -m $msg
