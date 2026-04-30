@@ -1,0 +1,47 @@
+# flutter_app/android/fastlane/Fastfile
+
+default_platform(:android)
+
+platform :android do
+
+  # ── Build release APK ────────────────────────────────────────────────────────
+  desc "Build a release APK and copy it to releases/ with a versioned filename"
+  lane :build_apk do
+    # Read version from pubspec.yaml (e.g. "1.0.0+1" → name="1.0.0", code="1")
+    pubspec      = File.read(File.join(__dir__, '../../pubspec.yaml'))
+    version_line = pubspec.match(/^version:\s*(.+)/)
+    version_str  = version_line ? version_line[1].strip : "1.0.0+1"
+    version_name, version_code = version_str.split('+')
+    version_code ||= "1"
+
+    UI.message("Building Jyotish AI v#{version_name} (#{version_code})")
+
+    # Run flutter build from project root (two levels up from android/)
+    project_root = File.expand_path('../../', __dir__)
+    sh("cd #{project_root} && flutter build apk --release " \
+       "--dart-define=BACKEND_URL=https://jyotish-ai-backend.onrender.com " \
+       "--build-name=#{version_name} --build-number=#{version_code}")
+
+    # Source APK
+    apk_src = File.join(project_root,
+                        'build/app/outputs/flutter-apk/app-release.apk')
+
+    # Destination: repo_root/releases/jyotish-ai-v1.0.0-1.apk
+    repo_root   = File.expand_path('../../../', __dir__)
+    releases_dir = File.join(repo_root, 'releases')
+    FileUtils.mkdir_p(releases_dir)
+
+    timestamp   = Time.now.strftime('%Y%m%d')
+    apk_name    = "jyotish-ai-v#{version_name}-#{version_code}-#{timestamp}.apk"
+    apk_dest    = File.join(releases_dir, apk_name)
+
+    FileUtils.cp(apk_src, apk_dest)
+    UI.success("APK saved → releases/#{apk_name}")
+
+    # Also keep a fixed-name copy for easy local access
+    latest_dest = File.join(releases_dir, 'jyotish-ai-latest.apk')
+    FileUtils.cp(apk_src, latest_dest)
+    UI.success("APK saved → releases/jyotish-ai-latest.apk")
+  end
+
+end

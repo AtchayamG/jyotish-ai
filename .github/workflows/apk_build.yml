@@ -1,0 +1,79 @@
+name: Android — Build Release APK
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'flutter_app/lib/**'
+      - 'flutter_app/pubspec.yaml'
+      - 'flutter_app/android/**'
+      - '.github/workflows/apk_build.yml'
+  workflow_dispatch:   # manual trigger from GitHub UI
+
+permissions:
+  contents: write      # needed to commit the APK back to the repo
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Java (required by Gradle)
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 3. Flutter SDK
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      # 4. Ruby + Fastlane
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
+      - name: Install Fastlane
+        run: gem install fastlane --no-document
+
+      # 5. Flutter dependencies
+      - name: Flutter pub get
+        working-directory: flutter_app
+        run: flutter pub get
+
+      # 6. Build APK via Fastlane
+      - name: Build release APK
+        working-directory: flutter_app/android
+        run: fastlane build_apk
+
+      # 7. Upload APK as GitHub Actions artifact (downloadable from Actions tab)
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jyotish-ai-release-apk
+          path: releases/jyotish-ai-latest.apk
+          retention-days: 90
+
+      # 8. Commit versioned APK back to the repo under releases/
+      - name: Commit APK to repository
+        run: |
+          git config user.email "atchayamganesh@gmail.com"
+          git config user.name  "Atchayam [CI]"
+          git add releases/
+          # Only commit if there is something new
+          git diff --cached --quiet || \
+            git commit -m "ci: add release APK [skip ci]" && \
+            git push origin HEAD:master

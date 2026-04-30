@@ -1,0 +1,2 @@
+# Keep versioned APKs, ignore nothing — all APKs are intentionally committed.
+# The CI workflow commits jyotish-ai-v*.apk and jyotish-ai-latest.apk here.

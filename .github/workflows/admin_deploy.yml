@@ -1,35 +1,26 @@
-name: Deploy Admin Portal to GitHub Pages
+# Admin portal is now bundled inside the Flutter web deploy workflow.
+# It is served at: https://atchayamg.github.io/jyotish-ai/admin/
+# This file is kept as a placeholder — do NOT re-enable it independently
+# because GitHub Pages supports only ONE active deployment per repo.
+#
+# To update the admin portal: edit backend/admin/index.html and push to master.
+# The flutter_web_deploy.yml workflow will rebuild everything together.
+
+name: Admin Portal (disabled — bundled into flutter_web_deploy)
 
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - "backend/admin/**"
   workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "admin-pages"
-  cancel-in-progress: true
+    inputs:
+      reason:
+        description: 'This workflow is disabled. Admin is bundled in flutter_web_deploy.yml'
+        required: false
 
 jobs:
-  deploy:
+  noop:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - name: Upload admin portal
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: backend/admin
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Info
+        run: |
+          echo "Admin portal is bundled inside flutter_web_deploy.yml"
+          echo "URL: https://atchayamg.github.io/jyotish-ai/admin/"
+          echo "To redeploy, trigger flutter_web_deploy workflow instead."

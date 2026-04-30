@@ -2,18 +2,14 @@ name: Flutter Web — Build & Deploy to GitHub Pages
 
 on:
   push:
-    branches:
-      - main        # change to master if your default branch is master
-      - master
-  workflow_dispatch:  # allow manual trigger from GitHub UI
+    branches: [main, master]
+  workflow_dispatch:
 
-# Grant GITHUB_TOKEN permission to deploy to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Only one deployment at a time
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -26,32 +22,29 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      # ── 1. Checkout code ────────────────────────────────────────────────────
+      # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Setup Flutter ────────────────────────────────────────────────────
+      # 2. Flutter SDK
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'   # pin to stable version
+          flutter-version: '3.24.0'
           channel: 'stable'
           cache: true
 
-      # ── 3. Get dependencies ─────────────────────────────────────────────────
+      # 3. Dependencies
       - name: Flutter pub get
-        working-directory: flutter_app   # adjust if your flutter project is in root
+        working-directory: flutter_app
         run: flutter pub get
 
-      # ── 4. Add web support if missing ───────────────────────────────────────
+      # 4. Ensure web platform is enabled
       - name: Enable web
         working-directory: flutter_app
         run: flutter create . --platforms web --project-name jyotish_ai
 
-      # ── 5. Build web release ─────────────────────────────────────────────────
-      # base-href must match your GitHub Pages URL path
-      # If repo name is jyotish-ai → base-href is /jyotish-ai/
-      # If deploying to custom domain → use /
+      # 5. Build Flutter web → served at /jyotish-ai/ (the repo root URL)
       - name: Build Flutter web
         working-directory: flutter_app
         run: |
@@ -60,17 +53,24 @@ jobs:
             --base-href /jyotish-ai/ \
             --dart-define=BACKEND_URL=https://jyotish-ai-backend.onrender.com
 
-      # ── 6. Setup GitHub Pages ────────────────────────────────────────────────
+      # 6. Embed admin portal under /admin/ inside the same build output
+      #    Result: https://atchayamg.github.io/jyotish-ai/admin/
+      - name: Copy admin portal into /admin/ subfolder
+        run: |
+          mkdir -p flutter_app/build/web/admin
+          cp backend/admin/index.html flutter_app/build/web/admin/index.html
+
+      # 7. Configure Pages
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      # ── 7. Upload build output ──────────────────────────────────────────────
+      # 8. Upload combined output (Flutter at root + admin at /admin/)
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: flutter_app/build/web
 
-      # ── 8. Deploy to GitHub Pages ────────────────────────────────────────────
+      # 9. Deploy
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
