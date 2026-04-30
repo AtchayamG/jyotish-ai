@@ -174,7 +174,7 @@ class _KundliPageState extends State<KundliPage>
       // When kundli loads, propagate the moon sign (rasi) to AuthBloc so the
       // home dashboard shows the correct sign without requiring a re-login.
       if (state is KundliLoaded) {
-        final rasi = state.kundli.summary.rasi;
+        final rasi = state.kundli.rasi;
         if (rasi.isNotEmpty) {
           context.read<AuthBloc>().add(MoonSignUpdated(rasi));
         }

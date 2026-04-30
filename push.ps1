@@ -35,31 +35,44 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-feat: replace Prokerala with Swiss Ephemeris for accurate chart computation
+feat: full offline astrology engine — Swiss Ephemeris + Ashtakoota + AI horoscope
 
-Root cause: Prokerala API was silently returning empty responses, causing the
-app to always show hardcoded mock data (Mesha lagna / Vrischika rasi) instead
-of the user's actual birth chart.
+Root cause: Prokerala API was silently failing, showing hardcoded mock data
+(Mesha lagna / Vrischika rasi) regardless of user's actual birth details.
 
-Backend:
-- Add pyswisseph==2.10.3.2 to requirements.txt (same engine Prokerala uses)
-- New services/astro_compute.py: compute planet positions, Ascendant (Lagna),
-  Moon sign (Rasi), Nakshatra+pada directly using Swiss Ephemeris + Lahiri
-  ayanamsa — no external API required, works offline, accurate for any DOB
-- astrology_repository.py: _compute_chart() calls Swiss Ephemeris first;
-  Prokerala is now a fallback; mock data is last resort
-- astrology_service.py: English→Sanskrit mapper (_EN_TO_RASI/_to_rasi()),
-  _parse_planets uses planet_position key + converts English rasi names,
-  _parse_summary gets Lagna from ascendant.name and Moon rasi from Moon planet
-  or moon_sign key
+Backend — zero external API dependency for core features:
+
+requirements.txt:
+  + pyswisseph==2.10.3.2 (Swiss Ephemeris Python binding)
+
+services/astro_compute.py (NEW):
+  - Computes all planet positions (sidereal, Lahiri ayanamsa), Ascendant/Lagna,
+    Moon rasi, Nakshatra + pada directly via Swiss Ephemeris
+  - Returns Prokerala-shaped dicts so existing service parsing works unchanged
+  - Accurate for any birth date / location / timezone
+
+services/astro_match.py (NEW):
+  - Full Ashtakoota Guna Milan: all 8 kutas (Varna/Vashya/Tara/Yoni/Graha
+    Maitri/Gana/Bhakoot/Nadi) with classical scoring rules, 36 pt total
+  - Nakshatra data table (all 27) with Gana, Yoni, Varna, Nadi attributes
+  - Planet friendship table for Graha Maitri
+  - Nadi Dosha detection
+
+astrology_repository.py:
+  - _compute_chart(): Swiss Ephemeris first, Prokerala fallback, mock last resort
+
+astrology_service.py:
+  - English→Sanskrit rasi mapper + _parse_planets/_parse_summary fixes
+  - get_match: computes both charts via Swiss Ephemeris, runs Ashtakoota
+  - get_horoscope: Prokerala → AI-generated (OpenAI, sign+period specific) → static
+  - get_muhurtham: computes real auspicious days via Moon nakshatra + tithi;
+    dynamic fallback slots relative to requested date range
 
 Flutter:
-- horoscope_page.dart: _initSignFromUser() initialises sign picker from
-  AuthBloc moonSign so horoscope opens on user's actual Rasi (not Mesha)
-- auth_bloc.dart: MoonSignUpdated event saves moon sign to SecureStorage and
-  updates AuthAuthenticated state immediately
-- kundli_page.dart: BlocConsumer dispatches MoonSignUpdated after KundliLoaded
-  so home dashboard moon sign chip refreshes without re-login
+  - kundli_page.dart: fix compile error (KundliEntity.rasi not .summary.rasi)
+  - kundli_page.dart: BlocConsumer dispatches MoonSignUpdated on KundliLoaded
+  - auth_bloc.dart: MoonSignUpdated saves to SecureStorage + updates state
+  - horoscope_page.dart: _initSignFromUser() opens correct Rasi from AuthBloc
 "@
 
 git commit -m $msg
