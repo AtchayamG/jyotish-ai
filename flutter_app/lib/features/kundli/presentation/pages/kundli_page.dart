@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/kundli_bloc.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/widgets/no_network_page.dart';
@@ -16,15 +17,58 @@ class KundliPage extends StatefulWidget {
 class _KundliPageState extends State<KundliPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabs;
-  final _name = TextEditingController(text: 'My Chart');
+  late TextEditingController _name;
   int _year = 1990, _month = 4, _day = 12, _hour = 6, _minute = 30;
-  final double _lat = 13.0827, _lng = 80.2707;
+  double _lat = 13.0827, _lng = 80.2707;
+  String _place = '';
   bool _showForm = true;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
+    _name = TextEditingController(text: 'My Chart');
+    _initFromUser();
+  }
+
+  /// Pre-populate form with authenticated user's saved birth details.
+  /// If all required fields are present, auto-generate the chart.
+  void _initFromUser() {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return;
+    final u = authState.user;
+
+    // Name
+    if (u.fullName.isNotEmpty) _name.text = u.fullName;
+
+    // Date: "YYYY-MM-DD"
+    if (u.dateOfBirth != null) {
+      final parts = u.dateOfBirth!.split('-');
+      if (parts.length == 3) {
+        _year  = int.tryParse(parts[0]) ?? _year;
+        _month = int.tryParse(parts[1]) ?? _month;
+        _day   = int.tryParse(parts[2]) ?? _day;
+      }
+    }
+
+    // Time: "HH:MM"
+    if (u.timeOfBirth != null) {
+      final parts = u.timeOfBirth!.split(':');
+      if (parts.length >= 2) {
+        _hour   = int.tryParse(parts[0]) ?? _hour;
+        _minute = int.tryParse(parts[1]) ?? _minute;
+      }
+    }
+
+    // Location
+    if (u.birthLatitude != null)  _lat   = u.birthLatitude!;
+    if (u.birthLongitude != null) _lng   = u.birthLongitude!;
+    if (u.placeOfBirth != null)   _place = u.placeOfBirth!;
+
+    // Auto-fetch if we have everything we need
+    if (u.hasBirthDetails) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fetch());
+    }
   }
 
   @override
@@ -95,7 +139,13 @@ class _KundliPageState extends State<KundliPage>
       AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('LOCATION', style: AppTextStyles.sectionTag),
         const SizedBox(height: AppSpacing.sm),
-        Text('Chennai, Tamil Nadu', style: AppTextStyles.bodySm),
+        Text(
+          _place.isNotEmpty ? _place : 'No location set',
+          style: AppTextStyles.bodySm.copyWith(
+            color: _place.isNotEmpty ? null : AppColors.textHint,
+          ),
+        ),
+        const SizedBox(height: 2),
         Text('Lat: ${_lat.toStringAsFixed(4)}  Lng: ${_lng.toStringAsFixed(4)}',
             style: AppTextStyles.monoSm),
       ])),

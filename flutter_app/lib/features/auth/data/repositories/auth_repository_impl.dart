@@ -11,22 +11,66 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AuthResult> login(String email, String password) async {
     final m = await _ds.login(email: email, password: password);
     return (
-      accessToken: m.accessToken, refreshToken: m.refreshToken,
+      accessToken: m.accessToken,
+      refreshToken: m.refreshToken,
       user: UserEntity(
-        id: m.user.id, email: m.user.email, fullName: m.user.fullName,
-        phone: m.user.phone, isPremium: m.user.isPremium, isAdmin: m.user.isAdmin,
+        id: m.user.id,
+        email: m.user.email,
+        fullName: m.user.fullName,
+        phone: m.user.phone,
+        isPremium: m.user.isPremium,
+        isAdmin: m.user.isAdmin,
+        dateOfBirth: m.user.dateOfBirth,
+        timeOfBirth: m.user.timeOfBirth,
+        placeOfBirth: m.user.placeOfBirth,
+        birthLatitude: m.user.birthLatitude,
+        birthLongitude: m.user.birthLongitude,
+        birthTimezone: m.user.birthTimezone,
+        moonSign: m.user.moonSign,
       ),
     );
   }
 
   @override
-  Future<AuthResult> register(String email, String password, String fullName) async {
-    final m = await _ds.register(email: email, password: password, fullName: fullName);
+  Future<AuthResult> register(
+    String email,
+    String password,
+    String fullName, {
+    String? dateOfBirth,
+    String? timeOfBirth,
+    String? placeOfBirth,
+    double? latitude,
+    double? longitude,
+    double? timezone,
+  }) async {
+    final m = await _ds.register(
+      email: email,
+      password: password,
+      fullName: fullName,
+      dateOfBirth: dateOfBirth,
+      timeOfBirth: timeOfBirth,
+      placeOfBirth: placeOfBirth,
+      latitude: latitude,
+      longitude: longitude,
+      timezone: timezone,
+    );
     return (
-      accessToken: m.accessToken, refreshToken: m.refreshToken,
+      accessToken: m.accessToken,
+      refreshToken: m.refreshToken,
       user: UserEntity(
-        id: m.user.id, email: m.user.email, fullName: m.user.fullName,
-        phone: m.user.phone, isPremium: m.user.isPremium, isAdmin: m.user.isAdmin,
+        id: m.user.id,
+        email: m.user.email,
+        fullName: m.user.fullName,
+        phone: m.user.phone,
+        isPremium: m.user.isPremium,
+        isAdmin: m.user.isAdmin,
+        dateOfBirth: m.user.dateOfBirth,
+        timeOfBirth: m.user.timeOfBirth,
+        placeOfBirth: m.user.placeOfBirth,
+        birthLatitude: m.user.birthLatitude,
+        birthLongitude: m.user.birthLongitude,
+        birthTimezone: m.user.birthTimezone,
+        moonSign: m.user.moonSign,
       ),
     );
   }

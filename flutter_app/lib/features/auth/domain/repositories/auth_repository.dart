@@ -5,5 +5,15 @@ typedef AuthResult = ({String accessToken, String refreshToken, UserEntity user}
 
 abstract class AuthRepository {
   Future<AuthResult> login(String email, String password);
-  Future<AuthResult> register(String email, String password, String fullName);
+  Future<AuthResult> register(
+    String email,
+    String password,
+    String fullName, {
+    String? dateOfBirth,
+    String? timeOfBirth,
+    String? placeOfBirth,
+    double? latitude,
+    double? longitude,
+    double? timezone,
+  });
 }

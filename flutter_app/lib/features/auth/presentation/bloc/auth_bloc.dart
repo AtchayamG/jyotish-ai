@@ -7,34 +7,73 @@ import "../../domain/usecases/register_usecase.dart";
 import "../../data/datasources/auth_remote_datasource.dart";
 import "../../../../core/storage/secure_storage.dart";
 
-// Events
-abstract class AuthEvent extends Equatable { const AuthEvent(); @override List<Object?> get props => []; }
-class CheckAuthStatus   extends AuthEvent { const CheckAuthStatus(); }
-class LoginRequested    extends AuthEvent {
+// ── Events ────────────────────────────────────────────────────────────────────
+
+abstract class AuthEvent extends Equatable {
+  const AuthEvent();
+  @override
+  List<Object?> get props => [];
+}
+
+class CheckAuthStatus extends AuthEvent { const CheckAuthStatus(); }
+
+class LoginRequested extends AuthEvent {
   final String email, password;
   const LoginRequested(this.email, this.password);
-  @override List<Object?> get props => [email];
+  @override
+  List<Object?> get props => [email];
 }
+
 class RegisterRequested extends AuthEvent {
   final String email, password, name;
-  const RegisterRequested(this.email, this.password, this.name);
-  @override List<Object?> get props => [email];
+  final String? dateOfBirth;
+  final String? timeOfBirth;
+  final String? placeOfBirth;
+  final double? latitude;
+  final double? longitude;
+  final double? timezone;
+
+  const RegisterRequested(
+    this.email,
+    this.password,
+    this.name, {
+    this.dateOfBirth,
+    this.timeOfBirth,
+    this.placeOfBirth,
+    this.latitude,
+    this.longitude,
+    this.timezone,
+  });
+
+  @override
+  List<Object?> get props => [email, dateOfBirth];
 }
+
 class LogoutRequested extends AuthEvent { const LogoutRequested(); }
 
-// States
-abstract class AuthState extends Equatable { const AuthState(); @override List<Object?> get props => []; }
+// ── States ────────────────────────────────────────────────────────────────────
+
+abstract class AuthState extends Equatable {
+  const AuthState();
+  @override
+  List<Object?> get props => [];
+}
+
 class AuthInitial         extends AuthState { const AuthInitial(); }
 class AuthLoading         extends AuthState { const AuthLoading(); }
 class AuthAuthenticated   extends AuthState {
-  final UserEntity user; const AuthAuthenticated(this.user);
+  final UserEntity user;
+  const AuthAuthenticated(this.user);
   @override List<Object?> get props => [user.id];
 }
 class AuthUnauthenticated extends AuthState { const AuthUnauthenticated(); }
 class AuthError           extends AuthState {
-  final String message; const AuthError(this.message);
+  final String message;
+  const AuthError(this.message);
   @override List<Object?> get props => [message];
 }
+
+// ── BLoC ──────────────────────────────────────────────────────────────────────
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LoginUseCase login;
@@ -42,9 +81,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRemoteDataSource remoteDs;
   final SecureStorage storage;
 
-  AuthBloc({required this.login, required this.register,
-    required this.remoteDs, required this.storage})
-      : super(const AuthInitial()) {
+  AuthBloc({
+    required this.login,
+    required this.register,
+    required this.remoteDs,
+    required this.storage,
+  }) : super(const AuthInitial()) {
     on<CheckAuthStatus>(_onCheck);
     on<LoginRequested>(_onLogin);
     on<RegisterRequested>(_onRegister);
@@ -54,12 +96,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onCheck(CheckAuthStatus e, Emitter<AuthState> emit) async {
     try {
       if (await storage.isLoggedIn()) {
-        final id = await storage.getUserId() ?? "";
-        final email = await storage.getUserEmail() ?? "";
-        final name = await storage.getUserName() ?? "";
-        emit(AuthAuthenticated(UserEntity(id:id,email:email,fullName:name,isPremium:false,isAdmin:false)));
-      } else { emit(const AuthUnauthenticated()); }
-    } catch (_) { emit(const AuthUnauthenticated()); }
+        final id       = await storage.getUserId()      ?? "";
+        final email    = await storage.getUserEmail()   ?? "";
+        final name     = await storage.getUserName()    ?? "";
+        final dob      = await storage.getBirthDob();
+        final tob      = await storage.getBirthTob();
+        final place    = await storage.getBirthPlace();
+        final lat      = await storage.getBirthLat();
+        final lng      = await storage.getBirthLng();
+        final tz       = await storage.getBirthTimezone();
+        final moonSign = await storage.getMoonSign();
+        emit(AuthAuthenticated(UserEntity(
+          id: id, email: email, fullName: name,
+          isPremium: false, isAdmin: false,
+          dateOfBirth: dob, timeOfBirth: tob, placeOfBirth: place,
+          birthLatitude: lat, birthLongitude: lng, birthTimezone: tz,
+          moonSign: moonSign,
+        )));
+      } else {
+        emit(const AuthUnauthenticated());
+      }
+    } catch (_) {
+      emit(const AuthUnauthenticated());
+    }
   }
 
   Future<void> _onLogin(LoginRequested e, Emitter<AuthState> emit) async {
@@ -67,19 +126,51 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final r = await login(e.email, e.password);
       await storage.saveTokens(access: r.accessToken, refresh: r.refreshToken);
-      await storage.saveUser(id: r.user.id, email: r.user.email, name: r.user.fullName);
+      await storage.saveUser(
+          id: r.user.id, email: r.user.email, name: r.user.fullName);
+      await storage.saveBirthDetails(
+        dob:      r.user.dateOfBirth,
+        tob:      r.user.timeOfBirth,
+        place:    r.user.placeOfBirth,
+        lat:      r.user.birthLatitude,
+        lng:      r.user.birthLongitude,
+        timezone: r.user.birthTimezone,
+        moonSign: r.user.moonSign,
+      );
       emit(AuthAuthenticated(r.user));
-    } catch (err) { emit(AuthError(_clean(err.toString()))); }
+    } catch (err) {
+      emit(AuthError(_clean(err.toString())));
+    }
   }
 
   Future<void> _onRegister(RegisterRequested e, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
     try {
-      final r = await register(e.email, e.password, e.name);
+      final r = await register(
+        e.email, e.password, e.name,
+        dateOfBirth: e.dateOfBirth,
+        timeOfBirth: e.timeOfBirth,
+        placeOfBirth: e.placeOfBirth,
+        latitude:    e.latitude,
+        longitude:   e.longitude,
+        timezone:    e.timezone,
+      );
       await storage.saveTokens(access: r.accessToken, refresh: r.refreshToken);
-      await storage.saveUser(id: r.user.id, email: r.user.email, name: r.user.fullName);
+      await storage.saveUser(
+          id: r.user.id, email: r.user.email, name: r.user.fullName);
+      await storage.saveBirthDetails(
+        dob:      r.user.dateOfBirth,
+        tob:      r.user.timeOfBirth,
+        place:    r.user.placeOfBirth,
+        lat:      r.user.birthLatitude,
+        lng:      r.user.birthLongitude,
+        timezone: r.user.birthTimezone,
+        moonSign: r.user.moonSign,
+      );
       emit(AuthAuthenticated(r.user));
-    } catch (err) { emit(AuthError(_clean(err.toString()))); }
+    } catch (err) {
+      emit(AuthError(_clean(err.toString())));
+    }
   }
 
   Future<void> _onLogout(LogoutRequested e, Emitter<AuthState> emit) async {
@@ -88,8 +179,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   String _clean(String r) {
-    if (r.contains("AppError")) return r.replaceAll(RegExp(r"AppError\[.*?\]:\s*"),"");
+    if (r.contains("AppError"))      return r.replaceAll(RegExp(r"AppError\[.*?\]:\s*"), "");
     if (r.contains("Invalid email")) return "Invalid email or password";
-    return r.length > 80 ? "${r.substring(0,80)}…" : r;
+    if (r.contains("409"))           return "Email already registered. Please sign in.";
+    return r.length > 80 ? "${r.substring(0, 80)}…" : r;
   }
 }
