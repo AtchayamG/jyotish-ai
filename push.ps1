@@ -44,5 +44,8 @@ fix: seed endpoint updates existing user to admin; Places CORS proxy
 "@
 
 git commit -m $msg
+
+# Pull remote changes (e.g. CI APK commits) then push
+git pull origin master --rebase
 git push origin master
 Write-Host "Done!" -ForegroundColor Green
