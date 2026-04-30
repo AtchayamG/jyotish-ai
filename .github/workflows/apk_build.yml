@@ -8,10 +8,10 @@ on:
       - 'flutter_app/pubspec.yaml'
       - 'flutter_app/android/**'
       - '.github/workflows/apk_build.yml'
-  workflow_dispatch:   # manual trigger from GitHub UI
+  workflow_dispatch:
 
 permissions:
-  contents: write      # needed to commit the APK back to the repo
+  contents: write
 
 jobs:
   build-apk:
@@ -24,7 +24,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 2. Java (required by Gradle)
+      # 2. Java
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -44,22 +44,59 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          bundler-cache: false
 
       - name: Install Fastlane
         run: gem install fastlane --no-document
 
-      # 5. Flutter dependencies
+      # 5. Write google-services.json (stub for CI — Firebase push notifications
+      #    won't work in this build, but the app compiles and runs fine)
+      #    To use real Firebase: add GOOGLE_SERVICES_JSON as a repo secret (base64-encoded)
+      - name: Write google-services.json
+        run: |
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d \
+              > flutter_app/android/app/google-services.json
+            echo "Using real google-services.json from secret."
+          else
+            cat > flutter_app/android/app/google-services.json << 'EOF'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "jyotish-ai-ci-stub",
+              "storage_bucket": "jyotish-ai-ci-stub.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": {
+                    "package_name": "com.jyotishai.app"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "ci-stub-key" }],
+                "services": {
+                  "appinvite_service": { "other_platform_oauth_client": [] }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+            echo "Using CI stub google-services.json (no real Firebase)."
+          fi
+
+      # 6. Flutter dependencies
       - name: Flutter pub get
         working-directory: flutter_app
         run: flutter pub get
 
-      # 6. Build APK via Fastlane
+      # 7. Build APK via Fastlane
       - name: Build release APK
         working-directory: flutter_app/android
         run: fastlane build_apk
 
-      # 7. Upload APK as GitHub Actions artifact (downloadable from Actions tab)
+      # 8. Upload APK as Actions artifact (downloadable from Actions tab, 90 days)
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -67,13 +104,12 @@ jobs:
           path: releases/jyotish-ai-latest.apk
           retention-days: 90
 
-      # 8. Commit versioned APK back to the repo under releases/
+      # 9. Commit versioned APK back to repo
       - name: Commit APK to repository
         run: |
           git config user.email "atchayamganesh@gmail.com"
           git config user.name  "Atchayam [CI]"
           git add releases/
-          # Only commit if there is something new
           git diff --cached --quiet || \
-            git commit -m "ci: add release APK [skip ci]" && \
-            git push origin HEAD:master
+            (git commit -m "ci: add release APK [skip ci]" && \
+             git push origin HEAD:master)
