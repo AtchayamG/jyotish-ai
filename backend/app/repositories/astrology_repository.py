@@ -102,18 +102,39 @@ class AstrologyRepository:
             return {}  # triggers mock fallback in callers
 
     # ── Birth Chart / Planet Positions ────────────────────────────────────────
+    # Primary: direct Swiss Ephemeris computation (accurate, no external API)
+    # Fallback: Prokerala API → mock data
 
     async def get_birth_chart(self, birth: BirthDetails) -> Dict[str, Any]:
-        raw = await self._prokerala_get(
-            "planet-position", self._birth_params(birth)
-        )
+        computed = self._compute_chart(birth)
+        if computed:
+            return computed["chart"]
+        # Prokerala fallback
+        raw = await self._prokerala_get("planet-position", self._birth_params(birth))
         return raw if raw else self._mock_birth_chart()
 
     async def get_kundli_chart(self, birth: BirthDetails) -> Dict[str, Any]:
-        raw = await self._prokerala_get(
-            "kundli", self._birth_params(birth)
-        )
+        computed = self._compute_chart(birth)
+        if computed:
+            return computed["kundli"]
+        # Prokerala fallback
+        raw = await self._prokerala_get("kundli", self._birth_params(birth))
         return raw if raw else self._mock_kundli()
+
+    def _compute_chart(self, birth: BirthDetails) -> Dict[str, Any]:
+        """Try Swiss Ephemeris direct computation. Returns {} on failure."""
+        try:
+            from app.services.astro_compute import compute_chart
+            result = compute_chart(
+                year=birth.year, month=birth.month, day=birth.day,
+                hour=birth.hour, minute=birth.minute,
+                latitude=birth.latitude, longitude=birth.longitude,
+                timezone=birth.timezone,
+            )
+            return result if result else {}
+        except Exception as exc:
+            logger.warning(f"[AstroRepo] Direct computation failed: {exc}")
+            return {}
 
     # ── Horoscope ─────────────────────────────────────────────────────────────
 

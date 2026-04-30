@@ -35,30 +35,31 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-fix: correct Kundli parsing, horoscope sign init, moon sign dashboard
+feat: replace Prokerala with Swiss Ephemeris for accurate chart computation
 
-Backend (astrology_service.py):
-- Add English→Sanskrit rasi mapper (_EN_TO_RASI / _to_rasi())
-- _parse_planets: use 'planet_position' key (Prokerala) with 'planets' fallback (mock)
-- _parse_planets: convert English rasi names (Aries→Mesha etc.) for all planets + lagna
-- _parse_summary: accept chart param; get lagna from ascendant.name (English, Prokerala)
-  or ascendant.rasi.name (Sanskrit, mock fallback)
-- _parse_summary: derive moon sign (Rasi) from moon_sign.name, or Moon planet rasi,
-  or legacy rasi key — in that priority order
+Root cause: Prokerala API was silently returning empty responses, causing the
+app to always show hardcoded mock data (Mesha lagna / Vrischika rasi) instead
+of the user's actual birth chart.
 
-Flutter (horoscope_page.dart):
-- Import AuthBloc; call _initSignFromUser() in initState()
-- _initSignFromUser reads moonSign from AuthBloc and sets _idx to the correct sign,
-  so the horoscope opens on the user's Rasi instead of always defaulting to Mesha
+Backend:
+- Add pyswisseph==2.10.3.2 to requirements.txt (same engine Prokerala uses)
+- New services/astro_compute.py: compute planet positions, Ascendant (Lagna),
+  Moon sign (Rasi), Nakshatra+pada directly using Swiss Ephemeris + Lahiri
+  ayanamsa — no external API required, works offline, accurate for any DOB
+- astrology_repository.py: _compute_chart() calls Swiss Ephemeris first;
+  Prokerala is now a fallback; mock data is last resort
+- astrology_service.py: English→Sanskrit mapper (_EN_TO_RASI/_to_rasi()),
+  _parse_planets uses planet_position key + converts English rasi names,
+  _parse_summary gets Lagna from ascendant.name and Moon rasi from Moon planet
+  or moon_sign key
 
-Flutter (auth_bloc.dart):
-- Add MoonSignUpdated event + _onMoonSignUpdated handler
-- Handler saves moon sign to SecureStorage + emits updated AuthAuthenticated state
-  so the home dashboard chip updates without a re-login
-
-Flutter (kundli_page.dart):
-- Switch _buildChart from BlocBuilder → BlocConsumer
-- On KundliLoaded, dispatch MoonSignUpdated(k.summary.rasi) to AuthBloc
+Flutter:
+- horoscope_page.dart: _initSignFromUser() initialises sign picker from
+  AuthBloc moonSign so horoscope opens on user's actual Rasi (not Mesha)
+- auth_bloc.dart: MoonSignUpdated event saves moon sign to SecureStorage and
+  updates AuthAuthenticated state immediately
+- kundli_page.dart: BlocConsumer dispatches MoonSignUpdated after KundliLoaded
+  so home dashboard moon sign chip refreshes without re-login
 "@
 
 git commit -m $msg
