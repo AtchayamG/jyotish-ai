@@ -35,12 +35,12 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-fix: seed uses Firestore set(merge=True) to reliably set is_admin; places improvements
+fix: seed set(merge=True) + promote endpoint; places proxy improvements
 
-- seed.py: use fs.collection().document().set(patch, merge=True) directly instead
-  of db.update() wrapper - verifies write and returns actual is_admin value
-- places.py: rename param input->q, soft fallback for timezone, better error logs
-- places_service.dart: update query param key input->q
+- seed.py: patch via Firestore set(merge=True), verify and return actual is_admin
+- seed.py: add POST /api/v1/seed/promote?email=X to promote any user to admin
+- places.py: param input->q, timezone soft fallback, better Google error messages
+- places_service.dart: query param updated to match (q)
 "@
 
 git commit -m $msg
