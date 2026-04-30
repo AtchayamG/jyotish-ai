@@ -51,6 +51,30 @@ class RegisterRequested extends AuthEvent {
 
 class LogoutRequested extends AuthEvent { const LogoutRequested(); }
 
+/// Fired from ProfileCompletePage when a user (created via admin portal)
+/// fills in their birth details for the first time.
+class UpdateBirthDetailsRequested extends AuthEvent {
+  final String dateOfBirth;
+  final String timeOfBirth;
+  final String placeOfBirth;
+  final double latitude;
+  final double longitude;
+  final double timezone;
+
+  const UpdateBirthDetailsRequested({
+    required this.dateOfBirth,
+    required this.timeOfBirth,
+    required this.placeOfBirth,
+    required this.latitude,
+    required this.longitude,
+    required this.timezone,
+  });
+
+  @override
+  List<Object?> get props =>
+      [dateOfBirth, timeOfBirth, placeOfBirth, latitude, longitude, timezone];
+}
+
 // ── States ────────────────────────────────────────────────────────────────────
 
 abstract class AuthState extends Equatable {
@@ -64,7 +88,7 @@ class AuthLoading         extends AuthState { const AuthLoading(); }
 class AuthAuthenticated   extends AuthState {
   final UserEntity user;
   const AuthAuthenticated(this.user);
-  @override List<Object?> get props => [user.id];
+  @override List<Object?> get props => [user.id, user.dateOfBirth];
 }
 class AuthUnauthenticated extends AuthState { const AuthUnauthenticated(); }
 class AuthError           extends AuthState {
@@ -91,6 +115,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginRequested>(_onLogin);
     on<RegisterRequested>(_onRegister);
     on<LogoutRequested>(_onLogout);
+    on<UpdateBirthDetailsRequested>(_onUpdateBirthDetails);
   }
 
   Future<void> _onCheck(CheckAuthStatus e, Emitter<AuthState> emit) async {
@@ -99,6 +124,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final id       = await storage.getUserId()      ?? "";
         final email    = await storage.getUserEmail()   ?? "";
         final name     = await storage.getUserName()    ?? "";
+        final isAdmin  = await storage.getIsAdmin();
         final dob      = await storage.getBirthDob();
         final tob      = await storage.getBirthTob();
         final place    = await storage.getBirthPlace();
@@ -108,7 +134,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final moonSign = await storage.getMoonSign();
         emit(AuthAuthenticated(UserEntity(
           id: id, email: email, fullName: name,
-          isPremium: false, isAdmin: false,
+          isPremium: false, isAdmin: isAdmin,
           dateOfBirth: dob, timeOfBirth: tob, placeOfBirth: place,
           birthLatitude: lat, birthLongitude: lng, birthTimezone: tz,
           moonSign: moonSign,
@@ -127,7 +153,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final r = await login(e.email, e.password);
       await storage.saveTokens(access: r.accessToken, refresh: r.refreshToken);
       await storage.saveUser(
-          id: r.user.id, email: r.user.email, name: r.user.fullName);
+          id: r.user.id, email: r.user.email, name: r.user.fullName,
+          isAdmin: r.user.isAdmin);
       await storage.saveBirthDetails(
         dob:      r.user.dateOfBirth,
         tob:      r.user.timeOfBirth,
@@ -157,7 +184,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       await storage.saveTokens(access: r.accessToken, refresh: r.refreshToken);
       await storage.saveUser(
-          id: r.user.id, email: r.user.email, name: r.user.fullName);
+          id: r.user.id, email: r.user.email, name: r.user.fullName,
+          isAdmin: r.user.isAdmin);
       await storage.saveBirthDetails(
         dob:      r.user.dateOfBirth,
         tob:      r.user.timeOfBirth,
@@ -169,6 +197,50 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       emit(AuthAuthenticated(r.user));
     } catch (err) {
+      emit(AuthError(_clean(err.toString())));
+    }
+  }
+
+  Future<void> _onUpdateBirthDetails(
+      UpdateBirthDetailsRequested e, Emitter<AuthState> emit) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+    emit(const AuthLoading());
+    try {
+      final updated = await remoteDs.updateProfile(
+        dateOfBirth:  e.dateOfBirth,
+        timeOfBirth:  e.timeOfBirth,
+        placeOfBirth: e.placeOfBirth,
+        latitude:     e.latitude,
+        longitude:    e.longitude,
+        timezone:     e.timezone,
+      );
+      await storage.saveBirthDetails(
+        dob:      updated.dateOfBirth,
+        tob:      updated.timeOfBirth,
+        place:    updated.placeOfBirth,
+        lat:      updated.birthLatitude,
+        lng:      updated.birthLongitude,
+        timezone: updated.birthTimezone,
+        moonSign: updated.moonSign,
+      );
+      emit(AuthAuthenticated(UserEntity(
+        id:             updated.id,
+        email:          updated.email,
+        fullName:       updated.fullName,
+        isPremium:      updated.isPremium,
+        isAdmin:        updated.isAdmin,
+        dateOfBirth:    updated.dateOfBirth,
+        timeOfBirth:    updated.timeOfBirth,
+        placeOfBirth:   updated.placeOfBirth,
+        birthLatitude:  updated.birthLatitude,
+        birthLongitude: updated.birthLongitude,
+        birthTimezone:  updated.birthTimezone,
+        moonSign:       updated.moonSign,
+      )));
+    } catch (err) {
+      // Restore previous state on failure
+      emit(current);
       emit(AuthError(_clean(err.toString())));
     }
   }

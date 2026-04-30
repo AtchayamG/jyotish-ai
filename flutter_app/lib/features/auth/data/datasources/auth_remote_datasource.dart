@@ -16,6 +16,14 @@ abstract class AuthRemoteDataSource {
     double? longitude,
     double? timezone,
   });
+  Future<UserModel> updateProfile({
+    String? dateOfBirth,
+    String? timeOfBirth,
+    String? placeOfBirth,
+    double? latitude,
+    double? longitude,
+    double? timezone,
+  });
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -56,5 +64,27 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           if (timezone != null) "birth_timezone": timezone,
         },
         fromJson: AuthModel.fromJson,
+      );
+
+  @override
+  Future<UserModel> updateProfile({
+    String? dateOfBirth,
+    String? timeOfBirth,
+    String? placeOfBirth,
+    double? latitude,
+    double? longitude,
+    double? timezone,
+  }) =>
+      _c.put(
+        ApiConstants.userProfile,
+        body: {
+          if (dateOfBirth != null) "date_of_birth": dateOfBirth,
+          if (timeOfBirth != null) "time_of_birth": timeOfBirth,
+          if (placeOfBirth != null) "place_of_birth": placeOfBirth,
+          if (latitude != null) "birth_latitude": latitude,
+          if (longitude != null) "birth_longitude": longitude,
+          if (timezone != null) "birth_timezone": timezone,
+        },
+        fromJson: UserModel.fromJson,
       );
 }

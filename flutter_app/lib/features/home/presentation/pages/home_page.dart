@@ -237,7 +237,7 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: const Icon(Icons.logout_outlined,
                   color: AppColors.rose),
-              title: const Text('Sign Out',
+              title: Text('Sign Out',
                   style: AppTextStyles.bodyMd),
               onTap: () {
                 Navigator.pop(context);
