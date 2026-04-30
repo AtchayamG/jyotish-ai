@@ -35,19 +35,10 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-feat: fix Prokerala 500, remove admin tab, splash 3s, AI chat user context
+fix: AppColors.textMuted → textSecondary in ai_chat_page (compile error)
 
-Backend:
-- astrology_repository.py: catch ExternalAPIError in _prokerala_get + _get_token
-  so Prokerala failures fall back to mock data instead of 500
-- ai_chat_service.py: tighten system prompt — AI must respond from user chart only
-
-Flutter:
-- shell_page.dart + app_router.dart: remove admin tab & route (standalone portal)
-- splash_page.dart: enforce 3s minimum display; pulsing rings + animated dots
-- ai_chat/*: thread user birth details through ChatBloc → usecase → datasource
-  so every AI message includes the user's Lagna/Rasi/Nakshatra/Dasha context
-- ai_chat_page.dart: personalised welcome (name, DOB chip, place, moon sign)
+- ai_chat_page.dart line 227: AppColors.textMuted does not exist in AppColors
+  replaced with AppColors.textSecondary (the correct constant name)
 "@
 
 git commit -m $msg

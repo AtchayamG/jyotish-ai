@@ -224,7 +224,7 @@ class _AiChatPageState extends State<AiChatPage> {
     mainAxisSize: MainAxisSize.min, children: [
       Text(icon, style: const TextStyle(fontSize: 18)),
       const SizedBox(height: 3),
-      Text(label, style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+      Text(label, style: AppTextStyles.bodyXs.copyWith(color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
     ],
   );
 }
