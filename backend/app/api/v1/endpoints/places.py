@@ -29,6 +29,30 @@ async def _get(url: str, params: dict) -> dict:
         return r.json()
 
 
+@router.get("/ping")
+async def places_ping():
+    """Health check — confirms key is set without calling Google."""
+    key = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
+    return {
+        "key_configured": bool(key),
+        "key_prefix": key[:8] + "..." if key else None,
+    }
+
+
+@router.get("/test")
+async def places_test(q: str = Query(default="Chennai")):
+    """Diagnostic endpoint — returns raw Google Places response for debugging."""
+    key = _get_key()
+    try:
+        raw = await _get(
+            f"{_BASE}/place/autocomplete/json",
+            {"input": q, "key": key, "types": "(cities)", "language": "en"},
+        )
+        return {"raw_google_response": raw}
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
 @router.get("/autocomplete")
 async def autocomplete(q: str = Query(..., min_length=2)):
     """Proxy for Places Autocomplete — returns up to 5 city predictions."""
@@ -41,13 +65,19 @@ async def autocomplete(q: str = Query(..., min_length=2)):
     except httpx.HTTPError as e:
         logger.error("Places autocomplete HTTP error: %s", e)
         raise HTTPException(502, f"Google API unreachable: {e}")
+    except Exception as e:
+        logger.error("Places autocomplete unexpected error: %s", e, exc_info=True)
+        raise HTTPException(500, f"Internal error: {type(e).__name__}: {e}")
 
     status = data.get("status", "UNKNOWN")
     if status == "ZERO_RESULTS":
         return []
     if status != "OK":
         logger.error("Places autocomplete error status: %s | %s", status, data.get("error_message", ""))
-        raise HTTPException(502, f"Google Places error: {status} — {data.get('error_message', '')}")
+        raise HTTPException(
+            502,
+            f"Google Places error: {status} — {data.get('error_message', 'no error_message')}",
+        )
 
     return [
         {"description": p["description"], "place_id": p["place_id"]}
@@ -68,9 +98,15 @@ async def place_details(place_id: str = Query(...)):
         )
     except httpx.HTTPError as e:
         raise HTTPException(502, f"Google API unreachable: {e}")
+    except Exception as e:
+        logger.error("Place details unexpected error: %s", e, exc_info=True)
+        raise HTTPException(500, f"Internal error: {type(e).__name__}: {e}")
 
     if details.get("status") != "OK":
-        raise HTTPException(502, f"Place details error: {details.get('status')} — {details.get('error_message', '')}")
+        raise HTTPException(
+            502,
+            f"Place details error: {details.get('status')} — {details.get('error_message', 'no error_message')}",
+        )
 
     result = details["result"]
     loc = result["geometry"]["location"]

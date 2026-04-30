@@ -35,12 +35,14 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-fix: seed set(merge=True) + promote endpoint; places proxy improvements
+fix: is_admin always false in login response; places diagnostic endpoint
 
-- seed.py: patch via Firestore set(merge=True), verify and return actual is_admin
-- seed.py: add POST /api/v1/seed/promote?email=X to promote any user to admin
-- places.py: param input->q, timezone soft fallback, better Google error messages
-- places_service.dart: query param updated to match (q)
+- auth_service.py: _build_token_response was not passing is_admin to UserPublic
+  — is_admin defaulted to False even when Firestore had True. Now fixed.
+- auth_service.py: also pass birth details + moon_sign in token response
+- places.py: add GET /api/v1/places/ping (key health check, no Google call)
+- places.py: add GET /api/v1/places/test?q=Chennai (raw Google response dump)
+- places.py: catch all Exception types (not just httpx.HTTPError) for better 500s
 "@
 
 git commit -m $msg
