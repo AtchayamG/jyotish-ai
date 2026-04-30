@@ -1,2 +1,8 @@
 import '../../data/models/chat_model.dart';
-abstract class ChatRepository { Future<ChatResponseModel> sendMessage(String msg, List<ChatMessageModel> history); }
+abstract class ChatRepository {
+  Future<ChatResponseModel> sendMessage(
+    String msg,
+    List<ChatMessageModel> history, {
+    Map<String, dynamic>? userContext,
+  });
+}

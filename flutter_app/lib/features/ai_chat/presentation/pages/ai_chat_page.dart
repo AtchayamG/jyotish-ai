@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/widgets/no_network_page.dart';
 import '../../../../core/widgets/error_page.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 
 class AiChatPage extends StatefulWidget {
   const AiChatPage({super.key});
@@ -26,11 +27,36 @@ class _AiChatPageState extends State<AiChatPage> {
     super.dispose();
   }
 
+  /// Build user birth details map from AuthBloc to pass as context to AI.
+  Map<String, dynamic>? _userContext() {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return null;
+    final u = authState.user;
+    if (!u.hasBirthDetails) return null;
+
+    final dob = (u.dateOfBirth ?? '').split('-');
+    final tob = (u.timeOfBirth ?? '06:00').split(':');
+    return {
+      'name':      u.fullName,
+      'year':      dob.length == 3 ? int.tryParse(dob[0]) ?? 1990 : 1990,
+      'month':     dob.length == 3 ? int.tryParse(dob[1]) ?? 1    : 1,
+      'day':       dob.length == 3 ? int.tryParse(dob[2]) ?? 1    : 1,
+      'hour':      tob.length >= 1 ? int.tryParse(tob[0]) ?? 6    : 6,
+      'minute':    tob.length >= 2 ? int.tryParse(tob[1]) ?? 0    : 0,
+      'latitude':  u.birthLatitude  ?? 13.08,
+      'longitude': u.birthLongitude ?? 80.27,
+      'timezone':  u.birthTimezone  ?? 5.5,
+      'ayanamsa':  'lahiri',
+      'place':     u.placeOfBirth   ?? '',
+      'moon_sign': u.moonSign       ?? '',
+    };
+  }
+
   void _send([String? text]) {
     final msg = text ?? _ctrl.text.trim();
     if (msg.isEmpty) return;
     _ctrl.clear();
-    context.read<ChatBloc>().add(SendMessage(msg));
+    context.read<ChatBloc>().add(SendMessage(msg, userContext: _userContext()));
     _scrollToBottom();
   }
 
@@ -121,58 +147,86 @@ class _AiChatPageState extends State<AiChatPage> {
         ),
       );
 
-  Widget _buildWelcome() => SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.x3l),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const SizedBox(height: AppSpacing.x4l),
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.violetDim,
-              border: Border.all(color: AppColors.violet.withOpacity(0.4)),
-            ),
-            child: const Center(
-                child: Text('✦',
-                    style:
-                        TextStyle(fontSize: 32, color: AppColors.violetLight))),
-          ),
+  Widget _buildWelcome() {
+    final authState = context.read<AuthBloc>().state;
+    final user = authState is AuthAuthenticated ? authState.user : null;
+    final firstName = user?.fullName.split(' ').first ?? '';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.x3l),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const SizedBox(height: AppSpacing.x4l),
+        Container(
+          width: 72, height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle, color: AppColors.violetDim,
+            border: Border.all(color: AppColors.violet.withOpacity(0.4))),
+          child: const Center(
+              child: Text('✦',
+                  style: TextStyle(fontSize: 32, color: AppColors.violetLight))),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text('Namaskaram, $firstName! 🙏', style: AppTextStyles.displaySm),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          "I am your personal Vedic astrologer.\nAll readings are based on your birth chart.",
+          style: AppTextStyles.bodySm.copyWith(height: 1.7),
+          textAlign: TextAlign.center,
+        ),
+        // Show user's chart snapshot if available
+        if (user != null && user.hasBirthDetails) ...[
           const SizedBox(height: AppSpacing.lg),
-          const Text('Namaskaram! 🙏', style: AppTextStyles.displaySm),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            "I'm your Vedic astrology companion.\nAsk me anything about your cosmos.",
-            style: AppTextStyles.bodySm.copyWith(height: 1.7),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          Text('SUGGESTED QUESTIONS', style: AppTextStyles.sectionTag),
-          const SizedBox(height: AppSpacing.md),
-          for (final q in [
-            'When will I get married? 💫',
-            'What does my current dasha mean?',
-            'Which gemstone should I wear?',
-            'What are today\'s auspicious times?',
-            'What remedies will help me?',
-          ])
-            GestureDetector(
-              onTap: () => _send(q),
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: AppColors.borderSubtle),
-                ),
-                child: Text(q, style: AppTextStyles.bodyMd),
-              ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.goldDim),
             ),
-        ]),
-      );
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+              _chartChip('📅', user.dateOfBirth ?? ''),
+              _chartChip('📍', user.placeOfBirth?.split(',').first ?? ''),
+              if (user.moonSign != null && user.moonSign!.isNotEmpty)
+                _chartChip('☽', user.moonSign!),
+            ]),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xxl),
+        Text('ASK YOUR ASTROLOGER', style: AppTextStyles.sectionTag),
+        const SizedBox(height: AppSpacing.md),
+        for (final q in [
+          'What does my current dasha mean for me?',
+          'When will my career improve?',
+          'Which gemstone is right for my chart?',
+          'What are my auspicious times today?',
+          'What remedies suit my planetary positions?',
+        ])
+          GestureDetector(
+            onTap: () => _send(q),
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.borderSubtle),
+              ),
+              child: Text(q, style: AppTextStyles.bodyMd),
+            ),
+          ),
+      ]),
+    );
+  }
+
+  Widget _chartChip(String icon, String label) => Column(
+    mainAxisSize: MainAxisSize.min, children: [
+      Text(icon, style: const TextStyle(fontSize: 18)),
+      const SizedBox(height: 3),
+      Text(label, style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+    ],
+  );
 }
 
 class _ChatBubble extends StatelessWidget {

@@ -38,17 +38,25 @@ class AstrologyRepository:
             return "mock_token"
 
         logger.info("[AstroRepo] Fetching new Prokerala OAuth token...")
-        resp = await http_client.post(
-            "https://api.prokerala.com/token",
-            data={
-                "grant_type":    "client_credentials",
-                "client_id":     settings.PROKERALA_CLIENT_ID,
-                "client_secret": settings.PROKERALA_CLIENT_SECRET,
-            },
-        )
+        try:
+            resp = await http_client.post(
+                "https://api.prokerala.com/token",
+                data={
+                    "grant_type":    "client_credentials",
+                    "client_id":     settings.PROKERALA_CLIENT_ID,
+                    "client_secret": settings.PROKERALA_CLIENT_SECRET,
+                },
+            )
+        except Exception as e:
+            logger.error(f"[AstroRepo] Failed to fetch Prokerala token: {e}")
+            return "mock_token"
 
-        token   = resp["access_token"]
+        token   = resp.get("access_token", "")
         expires = resp.get("expires_in", 3600)
+
+        if not token:
+            logger.error(f"[AstroRepo] No access_token in Prokerala response: {resp}")
+            return "mock_token"
 
         _token_cache["token"]      = token
         _token_cache["expires_at"] = now + expires
@@ -83,11 +91,15 @@ class AstrologyRepository:
         token = await self._get_token()
         if token == "mock_token":
             return {}  # caller handles empty dict → mock fallback
-        return await http_client.get(
-            f"{settings.PROKERALA_BASE_URL}/{endpoint}",
-            headers={"Authorization": f"Bearer {token}"},
-            params=params,
-        )
+        try:
+            return await http_client.get(
+                f"{settings.PROKERALA_BASE_URL}/{endpoint}",
+                headers={"Authorization": f"Bearer {token}"},
+                params=params,
+            )
+        except Exception as e:
+            logger.error(f"[AstroRepo] Prokerala call failed for '{endpoint}': {e}")
+            return {}  # triggers mock fallback in callers
 
     # ── Birth Chart / Planet Positions ────────────────────────────────────────
 

@@ -35,14 +35,19 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-fix: is_admin always false in login response; places diagnostic endpoint
+feat: fix Prokerala 500, remove admin tab, splash 3s, AI chat user context
 
-- auth_service.py: _build_token_response was not passing is_admin to UserPublic
-  — is_admin defaulted to False even when Firestore had True. Now fixed.
-- auth_service.py: also pass birth details + moon_sign in token response
-- places.py: add GET /api/v1/places/ping (key health check, no Google call)
-- places.py: add GET /api/v1/places/test?q=Chennai (raw Google response dump)
-- places.py: catch all Exception types (not just httpx.HTTPError) for better 500s
+Backend:
+- astrology_repository.py: catch ExternalAPIError in _prokerala_get + _get_token
+  so Prokerala failures fall back to mock data instead of 500
+- ai_chat_service.py: tighten system prompt — AI must respond from user chart only
+
+Flutter:
+- shell_page.dart + app_router.dart: remove admin tab & route (standalone portal)
+- splash_page.dart: enforce 3s minimum display; pulsing rings + animated dots
+- ai_chat/*: thread user birth details through ChatBloc → usecase → datasource
+  so every AI message includes the user's Lagna/Rasi/Nakshatra/Dasha context
+- ai_chat_page.dart: personalised welcome (name, DOB chip, place, moon sign)
 "@
 
 git commit -m $msg

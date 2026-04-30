@@ -11,7 +11,6 @@ import "../../features/kundli/presentation/pages/kundli_page.dart";
 import "../../features/horoscope/presentation/pages/horoscope_page.dart";
 import "../../features/matchmaking/presentation/pages/matchmaking_page.dart";
 import "../../features/ai_chat/presentation/pages/ai_chat_page.dart";
-import "../../features/admin/presentation/pages/admin_page.dart";
 import "shell_page.dart";
 
 class AppRoutes {
@@ -53,12 +52,8 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
         if (isAuth) {
           final user = (s as AuthAuthenticated).user;
 
-          // Admin-only route guard
-          if (going == AppRoutes.admin && !user.isAdmin) return AppRoutes.home;
-
-          // Non-admin users without birth details → profile completion
-          // (skip for admin users since they primarily use the admin panel)
-          if (!user.isAdmin && !user.hasBirthDetails && !onComplete) {
+          // Users without birth details → profile completion
+          if (!user.hasBirthDetails && !onComplete) {
             return AppRoutes.profileComplete;
           }
 
@@ -85,7 +80,6 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
             GoRoute(path: AppRoutes.horoscope,    builder: (_, __) => const HoroscopePage()),
             GoRoute(path: AppRoutes.matchmaking,  builder: (_, __) => const MatchmakingPage()),
             GoRoute(path: AppRoutes.aiChat,       builder: (_, __) => const AiChatPage()),
-            GoRoute(path: AppRoutes.admin,        builder: (_, __) => const AdminPage()),
           ],
         ),
       ],
