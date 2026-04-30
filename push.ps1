@@ -35,19 +35,10 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-feat: profile completion, admin portal revamp, compile fixes
+fix: AppSpacing.x2l -> xxl; add error_page import in home_page
 
-- Add ProfileCompletePage for admin-created users (DOB/TOB/Place form)
-- Router redirects non-admin users without birth details to /complete-profile
-- AuthBloc: UpdateBirthDetailsRequested event + handler
-- SecureStorage: persist isAdmin flag; restore on app restart
-- AuthAuthenticated.props includes dateOfBirth so router re-evaluates after save
-- Admin portal: auto-login overlay, Has Birth Data stat, birth columns in table
-- Admin portal: edit modal with birth detail fields (DOB/TOB/place/lat/lng/tz)
-- Admin portal: filter by access level and birth data; sidebar footer shows email
-- Fix DialogTheme vs DialogThemeData (Flutter 3.24) in register_page + profile_complete_page
-- Fix const Text with non-const style in home_page
-- Remove junk root files from repo
+- profile_complete_page: AppSpacing.x2l does not exist, replaced with xxl
+- home_page: InlineError is in error_page.dart, add missing import
 "@
 
 git commit -m $msg

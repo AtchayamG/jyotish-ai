@@ -7,6 +7,7 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../horoscope/presentation/bloc/horoscope_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/widgets/error_page.dart';
 import '../../../../core/widgets/no_network_page.dart';
 import '../../../../core/router/app_router.dart';
 

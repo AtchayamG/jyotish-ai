@@ -183,7 +183,7 @@ class _ProfileCompletePageState extends State<ProfileCompletePage> {
                           .copyWith(color: AppColors.textSecondary, height: 1.6),
                     ),
 
-                    const SizedBox(height: AppSpacing.x2l),
+                    const SizedBox(height: AppSpacing.xxl),
                     Text('BIRTH DATE', style: AppTextStyles.sectionTag),
                     const SizedBox(height: AppSpacing.sm),
                     GestureDetector(
