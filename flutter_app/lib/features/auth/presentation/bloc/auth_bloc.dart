@@ -51,6 +51,15 @@ class RegisterRequested extends AuthEvent {
 
 class LogoutRequested extends AuthEvent { const LogoutRequested(); }
 
+/// Fired from KundliPage after the kundli is computed and the backend
+/// has saved the moon sign to Firestore. Updates in-memory state + storage
+/// so the home dashboard moon-sign chip renders without a full re-login.
+class MoonSignUpdated extends AuthEvent {
+  final String moonSign;
+  const MoonSignUpdated(this.moonSign);
+  @override List<Object?> get props => [moonSign];
+}
+
 /// Fired from ProfileCompletePage when a user (created via admin portal)
 /// fills in their birth details for the first time.
 class UpdateBirthDetailsRequested extends AuthEvent {
@@ -116,6 +125,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterRequested>(_onRegister);
     on<LogoutRequested>(_onLogout);
     on<UpdateBirthDetailsRequested>(_onUpdateBirthDetails);
+    on<MoonSignUpdated>(_onMoonSignUpdated);
   }
 
   Future<void> _onCheck(CheckAuthStatus e, Emitter<AuthState> emit) async {
@@ -243,6 +253,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(current);
       emit(AuthError(_clean(err.toString())));
     }
+  }
+
+  Future<void> _onMoonSignUpdated(MoonSignUpdated e, Emitter<AuthState> emit) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+    // Persist to secure storage so it survives app restarts
+    await storage.saveBirthDetails(moonSign: e.moonSign);
+    // Update in-memory state immediately
+    emit(AuthAuthenticated(UserEntity(
+      id:             current.user.id,
+      email:          current.user.email,
+      fullName:       current.user.fullName,
+      isPremium:      current.user.isPremium,
+      isAdmin:        current.user.isAdmin,
+      dateOfBirth:    current.user.dateOfBirth,
+      timeOfBirth:    current.user.timeOfBirth,
+      placeOfBirth:   current.user.placeOfBirth,
+      birthLatitude:  current.user.birthLatitude,
+      birthLongitude: current.user.birthLongitude,
+      birthTimezone:  current.user.birthTimezone,
+      moonSign:       e.moonSign,
+    )));
   }
 
   Future<void> _onLogout(LogoutRequested e, Emitter<AuthState> emit) async {

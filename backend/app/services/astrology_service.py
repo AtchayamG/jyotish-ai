@@ -28,6 +28,26 @@ from app.schemas.astrology_schema import (
 
 logger = logging.getLogger(__name__)
 
+# ── English zodiac → Sanskrit rasi mapper (Prokerala returns English) ─────────
+_EN_TO_RASI = {
+    "Aries":       "Mesha",
+    "Taurus":      "Vrishabha",
+    "Gemini":      "Mithuna",
+    "Cancer":      "Karka",
+    "Leo":         "Simha",
+    "Virgo":       "Kanya",
+    "Libra":       "Tula",
+    "Scorpio":     "Vrischika",
+    "Sagittarius": "Dhanu",
+    "Capricorn":   "Makara",
+    "Aquarius":    "Kumbha",
+    "Pisces":      "Meena",
+}
+
+def _to_rasi(name: str) -> str:
+    """Convert English zodiac name to Sanskrit rasi. Passthrough if already Sanskrit."""
+    return _EN_TO_RASI.get(name, name)
+
 # Planet exaltation/debilitation mapping
 _PLANET_STATUS = {
     "Sun":     {"exalted": "Mesha", "debilitated": "Tula", "own": ["Simha"]},
@@ -96,7 +116,7 @@ class AstrologyService:
         chart_raw, kundli_raw = await self._repo.get_birth_chart(birth), await self._repo.get_kundli_chart(birth)
 
         planets = self._parse_planets(chart_raw, kundli_raw)
-        summary = self._parse_summary(kundli_raw)
+        summary = self._parse_summary(kundli_raw, chart_raw)
         dashas = self._mock_dashas(kundli_raw)
 
         current = kundli_raw.get("data", {})
@@ -112,8 +132,17 @@ class AstrologyService:
         )
 
     def _parse_planets(self, chart: dict, kundli: dict) -> List[PlanetPosition]:
-        planets_data = chart.get("data", {}).get("planets", [])
-        lagna_rasi = kundli.get("data", {}).get("ascendant", {}).get("rasi", {}).get("name", "Mesha")
+        # Prokerala uses 'planet_position'; mock data uses 'planets'
+        planets_data = (
+            chart.get("data", {}).get("planet_position")
+            or chart.get("data", {}).get("planets", [])
+        )
+        # Prokerala: ascendant.name (English); mock: ascendant.rasi.name (Sanskrit)
+        lagna_raw = (
+            kundli.get("data", {}).get("ascendant", {}).get("name")
+            or kundli.get("data", {}).get("ascendant", {}).get("rasi", {}).get("name", "Aries")
+        )
+        lagna_rasi = _to_rasi(lagna_raw)
 
         # Build house mapping: lagna is house 1
         rasi_order = ["Mesha","Vrishabha","Mithuna","Karka","Simha","Kanya","Tula","Vrischika","Dhanu","Makara","Kumbha","Meena"]
@@ -125,7 +154,8 @@ class AstrologyService:
         result = []
         for p in planets_data:
             name = p.get("name", "")
-            rasi = p.get("rasi", {}).get("name", "")
+            # Prokerala returns English names; convert to Sanskrit
+            rasi = _to_rasi(p.get("rasi", {}).get("name", ""))
             longitude = p.get("longitude", 0.0)
             nakshatra = p.get("nakshatra", {}).get("name", "")
             pada = p.get("nakshatra_pada", 1)
@@ -150,16 +180,51 @@ class AstrologyService:
             ))
         return result
 
-    def _parse_summary(self, kundli: dict) -> ChartSummary:
+    def _parse_summary(self, kundli: dict, chart: dict = None) -> ChartSummary:
         d = kundli.get("data", {})
-        lagna = d.get("ascendant", {}).get("rasi", {}).get("name", "Mesha")
+
+        # Lagna: Prokerala → ascendant.name (English); mock → ascendant.rasi.name (Sanskrit)
+        lagna_raw = (
+            d.get("ascendant", {}).get("name")
+            or d.get("ascendant", {}).get("rasi", {}).get("name", "Aries")
+        )
+        lagna = _to_rasi(lagna_raw)
+
+        # Rasi (Moon sign): try multiple sources in priority order
+        # 1. Prokerala kundli: moon_sign.name (English)
+        # 2. Moon planet in planet_position (English) or planets (Sanskrit)
+        # 3. Kundli top-level rasi key (mock legacy)
+        # 4. Default fallback
+        rasi = None
+        moon_sign_raw = d.get("moon_sign", {}).get("name") if "moon_sign" in d else None
+        if moon_sign_raw:
+            rasi = _to_rasi(moon_sign_raw)
+
+        if not rasi and chart:
+            chart_data = chart.get("data", {})
+            planet_list = (
+                chart_data.get("planet_position")
+                or chart_data.get("planets", [])
+            )
+            for p in planet_list:
+                if p.get("name", "").lower() == "moon":
+                    rasi = _to_rasi(p.get("rasi", {}).get("name", ""))
+                    break
+
+        if not rasi:
+            rasi = _to_rasi(d.get("rasi", {}).get("name", "Vrischika") if "rasi" in d else "Vrischika")
+
+        # Nakshatra: Prokerala uses English; nakshatras tend to be Sanskrit-consistent
+        nakshatra = d.get("nakshatra", {}).get("name", "Aswini")
+        pada      = d.get("nakshatra", {}).get("pada", 1)
+
         return ChartSummary(
             lagna=lagna,
             lagna_lord=self._get_rasi_lord(lagna),
-            rasi=d.get("rasi", {}).get("name", "Vrischika") if "rasi" in d else "Vrischika",
-            rasi_lord=self._get_rasi_lord(d.get("rasi", {}).get("name", "Vrischika") if "rasi" in d else "Vrischika"),
-            nakshatra=d.get("nakshatra", {}).get("name", "Aswini"),
-            pada=d.get("nakshatra", {}).get("pada", 1),
+            rasi=rasi,
+            rasi_lord=self._get_rasi_lord(rasi),
+            nakshatra=nakshatra,
+            pada=pada,
             tithi=d.get("tithi", {}).get("name", "Ekadashi"),
             yoga=d.get("yoga", {}).get("name", "Siddhi"),
             karana=d.get("karana", {}).get("name", "Bava"),

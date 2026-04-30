@@ -35,10 +35,30 @@ foreach ($f in $junk) {
 git add -A
 
 $msg = @"
-fix: AppColors.textMuted → textSecondary in ai_chat_page (compile error)
+fix: correct Kundli parsing, horoscope sign init, moon sign dashboard
 
-- ai_chat_page.dart line 227: AppColors.textMuted does not exist in AppColors
-  replaced with AppColors.textSecondary (the correct constant name)
+Backend (astrology_service.py):
+- Add English→Sanskrit rasi mapper (_EN_TO_RASI / _to_rasi())
+- _parse_planets: use 'planet_position' key (Prokerala) with 'planets' fallback (mock)
+- _parse_planets: convert English rasi names (Aries→Mesha etc.) for all planets + lagna
+- _parse_summary: accept chart param; get lagna from ascendant.name (English, Prokerala)
+  or ascendant.rasi.name (Sanskrit, mock fallback)
+- _parse_summary: derive moon sign (Rasi) from moon_sign.name, or Moon planet rasi,
+  or legacy rasi key — in that priority order
+
+Flutter (horoscope_page.dart):
+- Import AuthBloc; call _initSignFromUser() in initState()
+- _initSignFromUser reads moonSign from AuthBloc and sets _idx to the correct sign,
+  so the horoscope opens on the user's Rasi instead of always defaulting to Mesha
+
+Flutter (auth_bloc.dart):
+- Add MoonSignUpdated event + _onMoonSignUpdated handler
+- Handler saves moon sign to SecureStorage + emits updated AuthAuthenticated state
+  so the home dashboard chip updates without a re-login
+
+Flutter (kundli_page.dart):
+- Switch _buildChart from BlocBuilder → BlocConsumer
+- On KundliLoaded, dispatch MoonSignUpdated(k.summary.rasi) to AuthBloc
 "@
 
 git commit -m $msg

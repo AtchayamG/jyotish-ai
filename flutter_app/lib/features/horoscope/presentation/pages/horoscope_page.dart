@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/widgets/no_network_page.dart';
 import '../../../../core/widgets/error_page.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 
 const _signs   = ['Mesha','Vrishabha','Mithuna','Karka','Simha','Kanya','Tula','Vrischika','Dhanu','Makara','Kumbha','Meena'];
 const _symbols = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
@@ -20,7 +21,25 @@ class _HoroscopePageState extends State<HoroscopePage> {
   int _idx = 0;
   String _type = 'daily';
 
-  @override void initState() { super.initState(); _fetch(); }
+  @override
+  void initState() {
+    super.initState();
+    _initSignFromUser();
+    _fetch();
+  }
+
+  /// Set the sign index from the user's saved moon sign so the
+  /// horoscope opens on their rasi instead of always defaulting to Mesha.
+  void _initSignFromUser() {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      final moonSign = authState.user.moonSign;
+      if (moonSign != null && moonSign.isNotEmpty) {
+        final idx = _signs.indexOf(moonSign);
+        if (idx >= 0) _idx = idx;
+      }
+    }
+  }
 
   void _fetch() =>
       context.read<HoroscopeBloc>().add(FetchHoroscope(_signs[_idx], type: _type));
