@@ -6,6 +6,7 @@ Transforms raw API data into clean response schemas.
 import logging
 from typing import List
 
+from app.core.http_client import http_client
 from app.repositories.astrology_repository import AstrologyRepository
 from app.schemas.astrology_schema import (
     BirthDetails,

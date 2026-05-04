@@ -24,6 +24,8 @@ abstract class AuthRemoteDataSource {
     double? longitude,
     double? timezone,
   });
+  /// Fetch fresh user data from backend (includes computed moon sign).
+  Future<UserModel> fetchProfile();
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -87,4 +89,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         },
         fromJson: UserModel.fromJson,
       );
+
+  @override
+  Future<UserModel> fetchProfile() =>
+      _c.get(ApiConstants.userProfile, fromJson: UserModel.fromJson);
 }

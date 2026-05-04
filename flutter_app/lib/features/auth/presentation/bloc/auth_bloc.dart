@@ -141,7 +141,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final lat      = await storage.getBirthLat();
         final lng      = await storage.getBirthLng();
         final tz       = await storage.getBirthTimezone();
-        final moonSign = await storage.getMoonSign();
+        var   moonSign = await storage.getMoonSign();
+
+        // Emit quickly from local storage so UI shows immediately
         emit(AuthAuthenticated(UserEntity(
           id: id, email: email, fullName: name,
           isPremium: false, isAdmin: isAdmin,
@@ -149,6 +151,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           birthLatitude: lat, birthLongitude: lng, birthTimezone: tz,
           moonSign: moonSign,
         )));
+
+        // If moon sign is missing but user has birth details, fetch it from
+        // the backend silently. The backend computes it from the user's
+        // stored birth details via Swiss Ephemeris.
+        if (moonSign == null && dob != null && lat != null) {
+          try {
+            final profile = await remoteDs.fetchProfile();
+            if (profile.moonSign != null && profile.moonSign!.isNotEmpty) {
+              moonSign = profile.moonSign;
+              await storage.saveBirthDetails(moonSign: moonSign);
+              // Re-emit with the freshly obtained moon sign
+              emit(AuthAuthenticated(UserEntity(
+                id: id, email: email, fullName: name,
+                isPremium: profile.isPremium, isAdmin: profile.isAdmin,
+                dateOfBirth: profile.dateOfBirth ?? dob,
+                timeOfBirth: profile.timeOfBirth ?? tob,
+                placeOfBirth: profile.placeOfBirth ?? place,
+                birthLatitude: profile.birthLatitude ?? lat,
+                birthLongitude: profile.birthLongitude ?? lng,
+                birthTimezone: profile.birthTimezone ?? tz,
+                moonSign: moonSign,
+              )));
+            }
+          } catch (_) {
+            // Non-fatal: UI already has state from local storage
+          }
+        }
       } else {
         emit(const AuthUnauthenticated());
       }

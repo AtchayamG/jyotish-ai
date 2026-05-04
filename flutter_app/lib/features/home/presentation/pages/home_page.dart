@@ -24,18 +24,25 @@ class _HomePageState extends State<HomePage> {
     _loadForecast();
   }
 
-  /// Load horoscope for user's moon sign (rashi).
-  /// Falls back to Mesha if moon sign not computed yet.
+  /// Load today's forecast for the user.
+  /// Uses /my-horoscope (auth endpoint) when birth details are stored so the
+  /// backend derives the correct rasi. Falls back to sign-based fetch when
+  /// only moon sign is cached, or Mesha as last resort.
   void _loadForecast() {
     final authState = context.read<AuthBloc>().state;
-    String sign = 'Mesha';
     if (authState is AuthAuthenticated) {
       final u = authState.user;
+      if (u.hasBirthDetails) {
+        // Preferred: server computes rasi from birth chart
+        context.read<HoroscopeBloc>().add(const FetchMyHoroscope());
+        return;
+      }
       if (u.moonSign != null && u.moonSign!.isNotEmpty) {
-        sign = u.moonSign!;
+        context.read<HoroscopeBloc>().add(FetchHoroscope(u.moonSign!));
+        return;
       }
     }
-    context.read<HoroscopeBloc>().add(FetchHoroscope(sign));
+    context.read<HoroscopeBloc>().add(const FetchHoroscope('Mesha'));
   }
 
   @override
@@ -47,7 +54,13 @@ class _HomePageState extends State<HomePage> {
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthUnauthenticated) context.go(AppRoutes.login);
+        if (state is AuthUnauthenticated) {
+          context.go(AppRoutes.login);
+        } else if (state is AuthAuthenticated) {
+          // Moon sign was just fetched from the backend — reload forecast
+          // so the home card reflects the user's real rasi.
+          _loadForecast();
+        }
       },
       child: NetworkGuard(
         child: Scaffold(

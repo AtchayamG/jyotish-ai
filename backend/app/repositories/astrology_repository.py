@@ -230,28 +230,159 @@ class AstrologyRepository:
             }
         }
 
+
     def _mock_horoscope(self, sign: str, horo_type: str) -> Dict[str, Any]:
-        predictions = {
-            "Mesha":     "Jupiter aspects your 10th house bringing career breakthroughs. Excellent period for professional endeavours and public recognition.",
-            "Vrischika": "Mars in your favour strengthens determination. Emotional clarity helps resolve long-standing personal issues.",
-            "Karka":     "Moon in your sign brings emotional depth. Nurturing relationships and home matters are highlighted today.",
-            "Simha":     "Sun energises your natural leadership. Creative projects and self-expression bring rewards.",
+        # Full per-rasi data for all 12 signs
+        _RASI_DATA: Dict[str, Any] = {
+            "Mesha": {
+                "prediction": (
+                    "Jupiter's beneficial aspect on your 10th house signals professional breakthroughs and public recognition. "
+                    "Mars, your ruling planet, grants courage to initiate bold ventures. "
+                    "Financial gains come through decisive action — channel your natural energy constructively."
+                ),
+                "lucky_number": 9, "lucky_color": "Red", "lucky_gemstone": "Red Coral",
+                "career_score": 8.5, "love_score": 6.5, "health_score": 7.5, "finance_score": 8.0,
+                "do_today": ["Take initiative on pending projects", "Connect with senior mentors"],
+                "avoid_today": ["Impulsive financial decisions", "Confrontations with authority figures"],
+            },
+            "Vrishabha": {
+                "prediction": (
+                    "Venus, your ruling planet, showers grace on personal relationships and creative pursuits. "
+                    "Financial stability improves as Saturn's steady influence favours disciplined savings. "
+                    "Your patience and persistence will yield tangible, lasting results."
+                ),
+                "lucky_number": 6, "lucky_color": "White", "lucky_gemstone": "Diamond",
+                "career_score": 7.5, "love_score": 8.5, "health_score": 7.0, "finance_score": 8.0,
+                "do_today": ["Focus on long-term financial planning", "Nurture close relationships"],
+                "avoid_today": ["Stubbornness in negotiations", "Overspending on luxuries"],
+            },
+            "Mithuna": {
+                "prediction": (
+                    "Mercury sharpens your intellect and communication skills — ideal for negotiations and new learning. "
+                    "Opportunities arise through networking; your versatility is your greatest asset. "
+                    "Keep an open mind and explore multiple avenues simultaneously."
+                ),
+                "lucky_number": 5, "lucky_color": "Green", "lucky_gemstone": "Emerald",
+                "career_score": 8.0, "love_score": 7.0, "health_score": 7.5, "finance_score": 7.0,
+                "do_today": ["Network actively and share ideas", "Read and expand your knowledge"],
+                "avoid_today": ["Scattering energy across too many tasks", "Spreading unverified information"],
+            },
+            "Karka": {
+                "prediction": (
+                    "The Moon, your ruling planet, deepens emotional intelligence and intuition. "
+                    "Home, family, and inner peace are highlighted — nurturing your roots brings strength. "
+                    "Creative and spiritual activities flourish; trust your instincts above all else."
+                ),
+                "lucky_number": 2, "lucky_color": "Silver", "lucky_gemstone": "Pearl",
+                "career_score": 7.0, "love_score": 8.5, "health_score": 7.5, "finance_score": 6.5,
+                "do_today": ["Spend quality time with family", "Practice meditation or journaling"],
+                "avoid_today": ["Emotional over-reactions", "Neglecting self-care routines"],
+            },
+            "Simha": {
+                "prediction": (
+                    "The Sun illuminates your natural leadership qualities, drawing admiration and opportunities. "
+                    "Creative projects and self-expression receive strong cosmic support right now. "
+                    "Use your charisma to inspire others; authority figures are receptive to your ideas."
+                ),
+                "lucky_number": 1, "lucky_color": "Gold", "lucky_gemstone": "Ruby",
+                "career_score": 9.0, "love_score": 7.5, "health_score": 8.0, "finance_score": 7.5,
+                "do_today": ["Present ideas confidently to decision-makers", "Engage in creative leadership activities"],
+                "avoid_today": ["Arrogance or over-confidence", "Dominating conversations unnecessarily"],
+            },
+            "Kanya": {
+                "prediction": (
+                    "Mercury bestows analytical clarity and meticulous attention to detail. "
+                    "Health and service-oriented activities are favoured — a great time to refine your routines. "
+                    "Your practical wisdom and methodical approach help you solve complex problems elegantly."
+                ),
+                "lucky_number": 5, "lucky_color": "Navy Blue", "lucky_gemstone": "Emerald",
+                "career_score": 8.5, "love_score": 6.5, "health_score": 8.5, "finance_score": 7.5,
+                "do_today": ["Organise work and health routines", "Review contracts or documents carefully"],
+                "avoid_today": ["Over-criticism of self and others", "Excessive worry about minor details"],
+            },
+            "Tula": {
+                "prediction": (
+                    "Venus graces Tula with harmony, diplomacy, and aesthetic sensibility. "
+                    "Partnerships — business and personal — thrive under balanced Venusian energy. "
+                    "Legal matters and negotiations favour you; seek win-win outcomes for lasting results."
+                ),
+                "lucky_number": 6, "lucky_color": "Pink", "lucky_gemstone": "Diamond",
+                "career_score": 7.5, "love_score": 9.0, "health_score": 7.0, "finance_score": 7.5,
+                "do_today": ["Strengthen key partnerships", "Engage in artistic or cultural activities"],
+                "avoid_today": ["Indecision and prolonged fence-sitting", "Avoiding necessary conflicts"],
+            },
+            "Vrischika": {
+                "prediction": (
+                    "Mars intensifies your determination and gives you the power to transform challenges. "
+                    "Emotional clarity arrives after deep introspection; trust your powerful instincts. "
+                    "Research, hidden resources, and investigative work receive strong cosmic support."
+                ),
+                "lucky_number": 9, "lucky_color": "Dark Red", "lucky_gemstone": "Red Coral",
+                "career_score": 8.0, "love_score": 7.5, "health_score": 7.5, "finance_score": 8.5,
+                "do_today": ["Pursue deep research or investigative work", "Release what no longer serves you"],
+                "avoid_today": ["Jealousy or possessiveness", "Power struggles in relationships"],
+            },
+            "Dhanu": {
+                "prediction": (
+                    "Jupiter, your ruling planet, expands wisdom, optimism, and opportunities for growth. "
+                    "Higher education, philosophy, and spiritual pursuits are all favoured under this influence. "
+                    "Fortune favours the bold — your natural optimism inspires everyone around you."
+                ),
+                "lucky_number": 3, "lucky_color": "Yellow", "lucky_gemstone": "Yellow Sapphire",
+                "career_score": 8.5, "love_score": 7.5, "health_score": 8.0, "finance_score": 8.0,
+                "do_today": ["Pursue learning or higher education goals", "Plan a spiritual journey"],
+                "avoid_today": ["Overcommitting to too many projects", "Carelessness with important details"],
+            },
+            "Makara": {
+                "prediction": (
+                    "Saturn rewards your discipline and sustained effort with lasting achievements. "
+                    "Career advancement and professional recognition are highlighted during this period. "
+                    "Long-term investments and structured plans yield excellent returns — patience is your virtue."
+                ),
+                "lucky_number": 8, "lucky_color": "Black", "lucky_gemstone": "Blue Sapphire",
+                "career_score": 9.0, "love_score": 6.0, "health_score": 7.5, "finance_score": 8.5,
+                "do_today": ["Focus on long-term career goals", "Review and solidify financial structures"],
+                "avoid_today": ["Neglecting relationships for work", "Excessive pessimism or rigidity"],
+            },
+            "Kumbha": {
+                "prediction": (
+                    "Saturn and Rahu combine to bring innovation, humanitarian impulses, and unconventional thinking. "
+                    "Technology, social causes, and group activities receive strong cosmic support. "
+                    "Your visionary ideas can create meaningful, lasting change — embrace the unexpected."
+                ),
+                "lucky_number": 4, "lucky_color": "Blue", "lucky_gemstone": "Amethyst",
+                "career_score": 8.0, "love_score": 7.0, "health_score": 7.0, "finance_score": 7.5,
+                "do_today": ["Collaborate on innovative or tech-driven projects", "Engage in community work"],
+                "avoid_today": ["Emotional detachment from loved ones", "Rebellion without constructive purpose"],
+            },
+            "Meena": {
+                "prediction": (
+                    "Jupiter deepens your spiritual sensitivity, compassion, and creative imagination. "
+                    "Artistic, healing, and spiritual vocations flourish under this mystical influence. "
+                    "Acts of selfless service attract powerful blessings — your intuition is your greatest guide."
+                ),
+                "lucky_number": 7, "lucky_color": "Sea Green", "lucky_gemstone": "Yellow Sapphire",
+                "career_score": 7.0, "love_score": 8.5, "health_score": 7.0, "finance_score": 6.5,
+                "do_today": ["Engage in creative or spiritual practice", "Help someone in need"],
+                "avoid_today": ["Escapism or excessive daydreaming", "Setting weak boundaries with others"],
+            },
         }
-        text = predictions.get(
-            sign,
-            "The planetary alignment favours steady progress. Maintain patience and focus on your goals."
-        )
+        d = _RASI_DATA.get(sign, _RASI_DATA["Mesha"])
         return {
             "data": {
-                "prediction":    text,
-                "lucky_number":  7,
-                "lucky_color":   "Royal Blue",
-                "lucky_gemstone":"Blue Sapphire",
-                "career_score":  8.5,
-                "love_score":    6.0,
-                "health_score":  7.5,
-                "finance_score": 7.0,
-                "overall_score": 7.8,
+                "prediction":    d["prediction"],
+                "lucky_number":  d["lucky_number"],
+                "lucky_color":   d["lucky_color"],
+                "lucky_gemstone":d["lucky_gemstone"],
+                "career_score":  d["career_score"],
+                "love_score":    d["love_score"],
+                "health_score":  d["health_score"],
+                "finance_score": d["finance_score"],
+                "overall_score": round(
+                    (d["career_score"] + d["love_score"] + d["health_score"] + d["finance_score"]) / 4, 1
+                ),
+                "do_today":    d["do_today"],
+                "avoid_today": d["avoid_today"],
             }
         }
 
