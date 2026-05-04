@@ -32,38 +32,36 @@ foreach ($f in $junk) {
   }
 }
 
+# Remove Jyotish/ subfolder from git tracking and local disk (one-time cleanup)
+if (Test-Path "Jyotish") {
+  git rm -r --cached Jyotish/ 2>$null
+  Remove-Item -Recurse -Force "Jyotish"
+  Write-Host "Removed Jyotish/ subfolder" -ForegroundColor Yellow
+}
+
 git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
-feat: app icon, bar loader, routing fixes, horoscope tabs, home redesign
+fix: app icon correct path, horoscope period content, home spacing, Jyotish subfolder removed
 
-App icon:
-  - Custom crescent moon icon (gold/violet/teal rings, dark background)
-  - All 5 mipmap densities + ic_launcher_round + adaptive icon support
-  - mipmap-anydpi-v26 XML + ic_launcher_foreground for Android 8+
-  - values/colors.xml with ic_launcher_background (#060610)
-  - assets/icons/app_icon.png source file + pubspec.yaml declaration
+App icon (correct git paths):
+  - Icons now in correct flutter_app/android mipmap folders (not Jyotish subfolder)
+  - All 5 densities: ic_launcher + ic_launcher_round + ic_launcher_foreground
+  - mipmap-anydpi-v26/ic_launcher.xml + ic_launcher_round.xml (Android 8+)
+  - values/colors.xml: ic_launcher_background = #060610
 
-Splash / routing fixes:
-  - app_router.dart: splash route never auto-redirected by GoRouter
-    (SplashPage owns its own lifecycle + 3s minimum)
-  - Login loading no longer jumps to splash (AuthLoading stays on login page)
-  - Eliminated double-splash flash on reopen for logged-in users
-  - splash_page.dart: replaced 3-dot loader with 5-bar animated bar loader
+Horoscope - rich period-specific content:
+  - Weekly: full Mon-Sun day-by-day breakdown per rasi
+  - Monthly: career/finance/relationships/health/spiritual sections per rasi
+  - Yearly: complete annual forecast with quarterly guidance per rasi
+  - Daily predictions retained; horo_type now fully drives content
 
-Home screen:
-  - Forecast prediction text no longer truncated at 130 chars (full text shown)
-  - Action cards redesigned: horizontal icon+text layout, aspect ratio 2.1
-    (was 1.5 vertical stack) for compact and clean look
+Home page:
+  - Removed excess bottom padding (x3l -> lg) below Quick Actions
 
-Horoscope page:
-  - Period selector moved from AppBar compact toggles to full TabBar
-  - Tabs: Today / Weekly / Monthly / Yearly with gold indicator
-  - Content (prediction, scores, lucky factors, do/avoid) responds to tab
-
-No Connection page:
-  - Content now truly vertically centered (ConstrainedBox with minHeight)
+Repo cleanup:
+  - Removed Jyotish/ subfolder from git tracking and local disk
 "@
 
 $tmpFile = [System.IO.Path]::GetTempFileName()
