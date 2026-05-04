@@ -36,36 +36,19 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
-fix: moon sign on home screen, horoscope content, Android build
+feat: app icon + splash bar loader
 
-Android build:
-  - gradle.properties: disable Jetifier (fails on Java-21 jars), disable
-    Kotlin incremental (Windows path conflict in daemon)
-  - gradle-wrapper.properties: upgrade Gradle 8.4 to 8.9 (Java 21 compat)
-  - app/build.gradle.kts: Java/Kotlin target 1.8 to 11
+App icon:
+  - Generated Jyotish AI icon (crescent moon + concentric rings, gold/violet/teal)
+  - Written to all 5 Android mipmap densities (mdpi through xxxhdpi)
+  - ic_launcher.png and ic_launcher_round.png both updated
+  - Source 1024x1024 PNG saved to assets/icons/app_icon.png
+  - pubspec.yaml: declare assets/icons/ folder
 
-Backend:
-  - astrology_service.py: import http_client at module level (was NameError
-    inside _ai_horoscope causing AI fallback to silently fail)
-  - astrology_repository.py: expand _mock_horoscope to all 12 rasis with
-    proper per-rasi predictions, lucky factors, scores and do/avoid lists
-
-Flutter - moon sign on home screen:
-  - auth_remote_datasource.dart: add fetchProfile() -> GET /user/profile
-  - auth_bloc.dart: _onCheck silently fetches moon sign from backend when
-    local storage has no moon sign but user has birth details
-
-Flutter - horoscope page redesign:
-  - horoscope_remote_datasource.dart: add getMyHoroscope() -> GET /my-horoscope
-  - horoscope_repository + usecase: add getMyHoroscope / callMy methods
-  - horoscope_bloc.dart: add FetchMyHoroscope event
-  - horoscope_page.dart: complete redesign with period-aware titles,
-    rasi symbol, sign browser panel, lucky factors cards
-
-Flutter - home page:
-  - _loadForecast: uses FetchMyHoroscope (server-side) when birth details
-    present; falls back to FetchHoroscope(moonSign) then Mesha
-  - BlocListener: reloads forecast when AuthAuthenticated re-emits
+Splash screen:
+  - Replaced 3-dot pulsing loader with 5-bar animated bar loader
+  - Bars animate height 6px to 24px with staggered delays (mirror pattern)
+  - Center bar gold, adjacent bars violet, outer bars teal for depth
 "@
 
 $tmpFile = [System.IO.Path]::GetTempFileName()

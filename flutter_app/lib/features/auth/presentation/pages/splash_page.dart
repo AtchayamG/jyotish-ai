@@ -148,12 +148,8 @@ class _SplashPageState extends State<SplashPage>
                                     Text("Vedic & Tamil Astrology",
                                         style: AppTextStyles.bodySm),
                                     const SizedBox(height: 48),
-                                    // Loading dots
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: List.generate(3, (i) =>
-                                        _LoadingDot(delay: i * 220)),
-                                    ),
+                                    // Bar loader
+                                    const _BarLoader(),
                                   ])),
                         ))),
           ]),
@@ -168,42 +164,77 @@ class _SplashPageState extends State<SplashPage>
           border: Border.all(color: color, width: 1.5)));
 }
 
-class _LoadingDot extends StatefulWidget {
-  final int delay;
-  const _LoadingDot({required this.delay});
+// ── Bar Loader ────────────────────────────────────────────────────────────────
+
+class _BarLoader extends StatelessWidget {
+  const _BarLoader();
+
   @override
-  State<_LoadingDot> createState() => _LoadingDotState();
+  Widget build(BuildContext context) {
+    const int barCount = 5;
+    const delays = [0, 120, 240, 120, 0]; // mirror pattern
+    return SizedBox(
+      height: 28,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(barCount, (i) => _Bar(
+          delayMs: delays[i],
+          color: i == 2
+              ? AppColors.gold
+              : i == 1 || i == 3
+                  ? AppColors.violet.withOpacity(0.8)
+                  : AppColors.teal.withOpacity(0.6),
+        )),
+      ),
+    );
+  }
 }
 
-class _LoadingDotState extends State<_LoadingDot>
-    with SingleTickerProviderStateMixin {
+class _Bar extends StatefulWidget {
+  final int delayMs;
+  final Color color;
+  const _Bar({required this.delayMs, required this.color});
+
+  @override
+  State<_Bar> createState() => _BarState();
+}
+
+class _BarState extends State<_Bar> with SingleTickerProviderStateMixin {
   late AnimationController _c;
-  late Animation<double> _a;
+  late Animation<double> _height;
 
   @override
   void initState() {
     super.initState();
     _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
-    _a = Tween<double>(begin: 0.2, end: 1).animate(
+        vsync: this, duration: const Duration(milliseconds: 600));
+    _height = Tween<double>(begin: 6, end: 24).animate(
         CurvedAnimation(parent: _c, curve: Curves.easeInOut));
-    Future.delayed(Duration(milliseconds: widget.delay), () {
+    Future.delayed(Duration(milliseconds: widget.delayMs), () {
       if (mounted) _c.repeat(reverse: true);
     });
   }
 
   @override
-  void dispose() { _c.dispose(); super.dispose(); }
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: FadeTransition(
-          opacity: _a,
-          child: Container(
-              width: 7, height: 7,
-              decoration: const BoxDecoration(
-                  color: AppColors.gold, shape: BoxShape.circle)),
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: AnimatedBuilder(
+          animation: _height,
+          builder: (_, __) => Container(
+            width: 4,
+            height: _height.value,
+            decoration: BoxDecoration(
+              color: widget.color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
         ),
       );
 }
