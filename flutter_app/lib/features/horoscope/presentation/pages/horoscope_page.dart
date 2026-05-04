@@ -9,36 +9,69 @@ import '../../../../core/widgets/no_network_page.dart';
 import '../../../../core/widgets/error_page.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 
-const _signs   = ['Mesha','Vrishabha','Mithuna','Karka','Simha','Kanya','Tula','Vrischika','Dhanu','Makara','Kumbha','Meena'];
-const _symbols = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+const _signs       = ['Mesha','Vrishabha','Mithuna','Karka','Simha','Kanya','Tula','Vrischika','Dhanu','Makara','Kumbha','Meena'];
+const _symbols     = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
 const _englishNames = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
+
+// Period tab definitions
+const _periods = [
+  _Period('daily',   'Today',   'TODAY'),
+  _Period('weekly',  'Weekly',  'WEEKLY'),
+  _Period('monthly', 'Monthly', 'MONTHLY'),
+  _Period('yearly',  'Yearly',  'YEARLY'),
+];
+
+class _Period {
+  final String key, label, short;
+  const _Period(this.key, this.label, this.short);
+}
 
 class HoroscopePage extends StatefulWidget {
   const HoroscopePage({super.key});
   @override State<HoroscopePage> createState() => _HoroscopePageState();
 }
 
-class _HoroscopePageState extends State<HoroscopePage> {
+class _HoroscopePageState extends State<HoroscopePage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabCtrl;
   String _type = 'daily';
-  String? _userRasi;         // user's actual moon sign
+  String? _userRasi;
   bool _hasBirthDetails = false;
-  bool _browseOpen = false;  // whether the "browse other signs" panel is visible
-  int  _browseIdx = 0;       // which sign is selected in the browse panel
+  bool _browseOpen = false;
+  int  _browseIdx  = 0;
 
   @override
   void initState() {
     super.initState();
+    _tabCtrl = TabController(length: _periods.length, vsync: this);
+    _tabCtrl.addListener(_onTabChange);
     _initFromUser();
     _loadHoroscope();
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.removeListener(_onTabChange);
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onTabChange() {
+    if (_tabCtrl.indexIsChanging) return;
+    setState(() => _type = _periods[_tabCtrl.index].key);
+    if (_browseOpen) {
+      _loadForSign(_signs[_browseIdx]);
+    } else {
+      _loadHoroscope();
+    }
   }
 
   void _initFromUser() {
     final authState = context.read<AuthBloc>().state;
     if (authState is AuthAuthenticated) {
       final u = authState.user;
-      _userRasi = u.moonSign;
+      _userRasi        = u.moonSign;
       _hasBirthDetails = u.hasBirthDetails;
-      // Pre-select browse index to user's rasi for when they open the panel
       if (u.moonSign != null) {
         final idx = _signs.indexOf(u.moonSign!);
         if (idx >= 0) _browseIdx = idx;
@@ -47,8 +80,6 @@ class _HoroscopePageState extends State<HoroscopePage> {
   }
 
   void _loadHoroscope() {
-    // Prefer the authenticated my-horoscope endpoint which computes the
-    // user's actual rasi from birth details server-side.
     if (_hasBirthDetails) {
       context.read<HoroscopeBloc>().add(FetchMyHoroscope(type: _type));
     } else if (_userRasi != null) {
@@ -62,29 +93,11 @@ class _HoroscopePageState extends State<HoroscopePage> {
     context.read<HoroscopeBloc>().add(FetchHoroscope(sign, type: _type));
   }
 
-  String get _displaySign {
-    // When browsing a different sign, show that sign's name
-    if (_browseOpen) return _signs[_browseIdx];
-    return _userRasi ?? 'Mesha';
-  }
+  String get _periodShort => _periods[_tabCtrl.index].short;
+  String get _periodLabel => _periods[_tabCtrl.index].label;
 
-  String get _periodLabel {
-    switch (_type) {
-      case 'weekly':  return 'This Week';
-      case 'monthly': return 'This Month';
-      case 'yearly':  return 'This Year';
-      default:        return 'Today';
-    }
-  }
-
-  String get _periodShort {
-    switch (_type) {
-      case 'weekly':  return 'WEEKLY';
-      case 'monthly': return 'MONTHLY';
-      case 'yearly':  return 'YEARLY';
-      default:        return 'TODAY';
-    }
-  }
+  String get _displaySign =>
+      _browseOpen ? _signs[_browseIdx] : (_userRasi ?? 'Mesha');
 
   @override
   Widget build(BuildContext context) => NetworkGuard(
@@ -93,64 +106,40 @@ class _HoroscopePageState extends State<HoroscopePage> {
       appBar: AppBar(
         backgroundColor: AppColors.ink2,
         title: const Text('Horoscope', style: AppTextStyles.displayXs),
-        actions: [
-          // Period selector in app bar
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final t in ['daily', 'weekly', 'monthly', 'yearly'])
-                  GestureDetector(
-                    onTap: () {
-                      setState(() => _type = t);
-                      if (_browseOpen) {
-                        _loadForSign(_signs[_browseIdx]);
-                      } else {
-                        _loadHoroscope();
-                      }
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _type == t ? AppColors.gold : Colors.transparent,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        border: Border.all(
-                          color: _type == t ? AppColors.gold : AppColors.borderSubtle,
-                        ),
-                      ),
-                      child: Text(
-                        t[0].toUpperCase(),
-                        style: AppTextStyles.labelSm.copyWith(
-                          color: _type == t ? AppColors.ink : AppColors.textHint,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(44),
+          child: Container(
+            color: AppColors.ink2,
+            child: TabBar(
+              controller: _tabCtrl,
+              indicatorColor: AppColors.gold,
+              indicatorWeight: 2,
+              indicatorSize: TabBarIndicatorSize.label,
+              labelColor: AppColors.gold,
+              unselectedLabelColor: AppColors.textHint,
+              labelStyle: AppTextStyles.sectionTag.copyWith(fontSize: 10),
+              unselectedLabelStyle: AppTextStyles.sectionTag.copyWith(
+                  fontSize: 10, color: AppColors.textHint),
+              tabs: _periods.map((p) => Tab(text: p.label)).toList(),
             ),
           ),
-        ],
+        ),
       ),
       body: BlocBuilder<HoroscopeBloc, HoroscopeState>(
         builder: (_, state) {
           if (state is HoroscopeLoading) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+            return const Center(
+                child: CircularProgressIndicator(color: AppColors.gold));
           }
           if (state is HoroscopeError) {
-            return InlineError(message: state.msg, onRetry: () {
-              if (_browseOpen) {
-                _loadForSign(_signs[_browseIdx]);
-              } else {
-                _loadHoroscope();
-              }
-            });
+            return InlineError(
+              message: state.msg,
+              onRetry: () => _browseOpen
+                  ? _loadForSign(_signs[_browseIdx])
+                  : _loadHoroscope(),
+            );
           }
-          if (state is HoroscopeLoaded) {
-            return _buildContent(state.data);
-          }
+          if (state is HoroscopeLoaded) return _buildContent(state.data);
           return const SizedBox.shrink();
         },
       ),
@@ -176,7 +165,6 @@ class _HoroscopePageState extends State<HoroscopePage> {
           borderColor: AppColors.violet.withOpacity(0.3),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              // Symbol + names + badge
               Row(children: [
                 Text(_symbols[idx],
                     style: const TextStyle(fontSize: 36, color: AppColors.gold)),
@@ -189,11 +177,13 @@ class _HoroscopePageState extends State<HoroscopePage> {
                   if (isUserRasi) ...[
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.teal.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(AppRadius.full),
-                        border: Border.all(color: AppColors.teal.withOpacity(0.4)),
+                        border:
+                            Border.all(color: AppColors.teal.withOpacity(0.4)),
                       ),
                       child: Text('Your Rasi',
                           style: AppTextStyles.bodyXs
@@ -202,7 +192,6 @@ class _HoroscopePageState extends State<HoroscopePage> {
                   ],
                 ]),
               ]),
-              // Score + period
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text('${d.overallScore.toStringAsFixed(1)} / 10',
                     style: AppTextStyles.monoLg.copyWith(color: AppColors.gold)),
@@ -216,13 +205,15 @@ class _HoroscopePageState extends State<HoroscopePage> {
             const Divider(color: AppColors.borderSubtle, height: 1),
             const SizedBox(height: AppSpacing.md),
 
-            // ── Prediction ───────────────────────────────────────────────
+            // ── Prediction ─────────────────────────────────────────────────
             Row(children: [
-              Text('✦', style: TextStyle(color: AppColors.violetLight, fontSize: 12)),
+              Text('✦',
+                  style: TextStyle(color: AppColors.violetLight, fontSize: 12)),
               const SizedBox(width: 6),
               Text(
-                '${_signs[idx].toUpperCase()} · ${_periodShort} PREDICTION',
-                style: AppTextStyles.sectionTag.copyWith(color: AppColors.violetLight),
+                '${_signs[idx].toUpperCase()} · $_periodShort PREDICTION',
+                style: AppTextStyles.sectionTag
+                    .copyWith(color: AppColors.violetLight),
               ),
             ]),
             const SizedBox(height: AppSpacing.sm),
@@ -252,11 +243,14 @@ class _HoroscopePageState extends State<HoroscopePage> {
         Text('LUCKY FACTORS', style: AppTextStyles.sectionTag),
         const SizedBox(height: AppSpacing.md),
         Row(children: [
-          Expanded(child: _LuckyCard('🔢', 'Number', '${d.luckyNumber}', AppColors.gold)),
+          Expanded(child: _LuckyCard(
+              '🔢', 'Number', '${d.luckyNumber}', AppColors.gold)),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _LuckyCard('🎨', 'Color', d.luckyColor, AppColors.teal)),
+          Expanded(child: _LuckyCard(
+              '🎨', 'Color', d.luckyColor, AppColors.teal)),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: _LuckyCard('💎', 'Gemstone', d.luckyGemstone, AppColors.violetLight)),
+          Expanded(child: _LuckyCard(
+              '💎', 'Gemstone', d.luckyGemstone, AppColors.violetLight)),
         ]),
 
         const SizedBox(height: AppSpacing.lg),
@@ -269,7 +263,8 @@ class _HoroscopePageState extends State<HoroscopePage> {
           const SizedBox(height: AppSpacing.md),
         ],
         if (d.avoidToday.isNotEmpty) ...[
-          Text('⚠️  WHAT TO AVOID · $_periodShort', style: AppTextStyles.sectionTag),
+          Text('⚠️  WHAT TO AVOID · $_periodShort',
+              style: AppTextStyles.sectionTag),
           const SizedBox(height: AppSpacing.sm),
           _BulletCard(d.avoidToday, AppColors.rose),
           const SizedBox(height: AppSpacing.lg),
@@ -279,7 +274,8 @@ class _HoroscopePageState extends State<HoroscopePage> {
         GestureDetector(
           onTap: () => setState(() => _browseOpen = !_browseOpen),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -292,8 +288,11 @@ class _HoroscopePageState extends State<HoroscopePage> {
                     style: AppTextStyles.labelSm
                         .copyWith(color: AppColors.textSecondary)),
                 Icon(
-                  _browseOpen ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                  color: AppColors.textHint, size: 18,
+                  _browseOpen
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: AppColors.textHint,
+                  size: 18,
                 ),
               ],
             ),
@@ -331,19 +330,27 @@ class _HoroscopePageState extends State<HoroscopePage> {
                         width: isUserSign && !isSel ? 1.5 : 1.0,
                       ),
                     ),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                       Text(_symbols[i],
                           style: TextStyle(
                               fontSize: 18,
-                              color: isSel ? AppColors.gold : AppColors.textSecondary)),
+                              color: isSel
+                                  ? AppColors.gold
+                                  : AppColors.textSecondary)),
                       const SizedBox(height: 2),
                       Text(_signs[i].substring(0, 3),
                           style: AppTextStyles.bodyXs.copyWith(
-                              color: isSel ? AppColors.gold : AppColors.textHint,
+                              color: isSel
+                                  ? AppColors.gold
+                                  : AppColors.textHint,
                               fontSize: 9)),
                       if (isUserSign)
                         Container(
-                          width: 4, height: 4, margin: const EdgeInsets.only(top: 2),
+                          width: 4,
+                          height: 4,
+                          margin: const EdgeInsets.only(top: 2),
                           decoration: const BoxDecoration(
                               color: AppColors.teal, shape: BoxShape.circle),
                         ),
@@ -353,7 +360,6 @@ class _HoroscopePageState extends State<HoroscopePage> {
               },
             ),
           ),
-          // Button to go back to own rasi
           if (_userRasi != null) ...[
             const SizedBox(height: 8),
             GestureDetector(
@@ -362,11 +368,13 @@ class _HoroscopePageState extends State<HoroscopePage> {
                 _loadHoroscope();
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.teal.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(color: AppColors.teal.withOpacity(0.3)),
+                  border:
+                      Border.all(color: AppColors.teal.withOpacity(0.3)),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   const Icon(Icons.my_location, size: 14, color: AppColors.teal),
@@ -389,7 +397,10 @@ class _HoroscopePageState extends State<HoroscopePage> {
       Row(children: [
         Text(icon, style: const TextStyle(fontSize: 18)),
         const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text(label, style: AppTextStyles.labelSm),
             Text('${score.toStringAsFixed(1)} / 10',
@@ -418,19 +429,30 @@ class _HoroscopePageState extends State<HoroscopePage> {
         ]),
       );
 
-  Widget _BulletCard(List<String> items, Color color) =>
-      AppCard(child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: items.map((s) => Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: 6, height: 6, margin: const EdgeInsets.only(right: 10, top: 5),
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            Expanded(child: Text(s,
-                style: AppTextStyles.bodySm.copyWith(height: 1.55))),
-          ]),
-        )).toList(),
-      ));
+  Widget _BulletCard(List<String> items, Color color) => AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: items
+              .map((s) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        margin:
+                            const EdgeInsets.only(right: 10, top: 5),
+                        decoration: BoxDecoration(
+                            color: color, shape: BoxShape.circle),
+                      ),
+                      Expanded(
+                          child: Text(s,
+                              style: AppTextStyles.bodySm
+                                  .copyWith(height: 1.55))),
+                    ]),
+                  ))
+              .toList(),
+        ),
+      );
 }

@@ -30,25 +30,34 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
       initialLocation: AppRoutes.splash,
       refreshListenable: _GoRouterRefreshStream(authBloc.stream),
       redirect: (context, state) {
-        final s    = authBloc.state;
+        final s     = authBloc.state;
         final going = state.matchedLocation;
 
-        final isAuth      = s is AuthAuthenticated;
-        final isUnauth    = s is AuthUnauthenticated;
-        final isChecking  = s is AuthInitial || s is AuthLoading;
+        final isAuth     = s is AuthAuthenticated;
+        final isUnauth   = s is AuthUnauthenticated;
+        final isChecking = s is AuthInitial || s is AuthLoading;
 
-        final publicRoutes  = [AppRoutes.login, AppRoutes.register];
-        final onSplash      = going == AppRoutes.splash;
-        final onComplete    = going == AppRoutes.profileComplete;
+        final publicRoutes = [AppRoutes.login, AppRoutes.register];
+        final onSplash     = going == AppRoutes.splash;
+        final onComplete   = going == AppRoutes.profileComplete;
 
-        // While still determining auth state, stay on splash
-        if (isChecking) return onSplash ? null : AppRoutes.splash;
+        // ── Splash: never redirect away from it. ────────────────────────────
+        // SplashPage owns its own lifecycle (3-second minimum + auth gate).
+        // Only exception: while still checking auth, keep non-public routes
+        // bounced to splash so they can't show without credentials.
+        if (onSplash) return null;
 
-        // Not logged in → send to login (unless on a public route or splash)
-        if (isUnauth && !publicRoutes.contains(going) && !onSplash) {
-          return AppRoutes.login;
+        // ── Still determining auth state ─────────────────────────────────────
+        // Stay on login/register so the loading indicator works in-place.
+        // Any other protected route → hold on splash until auth is known.
+        if (isChecking) {
+          return publicRoutes.contains(going) ? null : AppRoutes.splash;
         }
 
+        // ── Not logged in ────────────────────────────────────────────────────
+        if (isUnauth && !publicRoutes.contains(going)) return AppRoutes.login;
+
+        // ── Logged in ────────────────────────────────────────────────────────
         if (isAuth) {
           final user = (s as AuthAuthenticated).user;
 
@@ -57,8 +66,8 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
             return AppRoutes.profileComplete;
           }
 
-          // Already logged in → bounce off splash / public pages
-          if (onSplash || publicRoutes.contains(going)) return AppRoutes.home;
+          // Bounce authenticated users off public pages
+          if (publicRoutes.contains(going)) return AppRoutes.home;
         }
 
         return null;

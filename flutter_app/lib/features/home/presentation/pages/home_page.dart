@@ -170,7 +170,7 @@ class _HomePageState extends State<HomePage> {
                     crossAxisCount: 2,
                     crossAxisSpacing: AppSpacing.sm,
                     mainAxisSpacing: AppSpacing.sm,
-                    childAspectRatio: 1.5,
+                    childAspectRatio: 2.1,
                     children: const [
                       _ActionCard(icon: '🪐', title: 'Kundli',
                           sub: 'Birth chart', route: AppRoutes.kundli,
@@ -310,9 +310,7 @@ class _ForecastCard extends StatelessWidget {
                 ]),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  d.prediction.length > 130
-                      ? '${d.prediction.substring(0, 130)}…'
-                      : d.prediction,
+                  d.prediction,
                   style: AppTextStyles.bodySm
                       .copyWith(color: AppColors.textSecondary, height: 1.6),
                 ),
@@ -405,19 +403,22 @@ class _ActionCard extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
         onTap: () => context.go(route),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md, vertical: AppSpacing.sm),
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: AppColors.borderSubtle),
           ),
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-            Text(icon, style: const TextStyle(fontSize: 22)),
-            const Spacer(),
-            Text(title, style: AppTextStyles.labelMd),
-            Text(sub, style: AppTextStyles.bodyXs),
+          child: Row(children: [
+            Text(icon, style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: AppSpacing.sm),
+            Column(crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+              Text(title, style: AppTextStyles.labelMd),
+              Text(sub, style: AppTextStyles.bodyXs),
+            ]),
           ]),
         ),
       );

@@ -36,19 +36,34 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
-feat: app icon + splash bar loader
+feat: app icon, bar loader, routing fixes, horoscope tabs, home redesign
 
 App icon:
-  - Generated Jyotish AI icon (crescent moon + concentric rings, gold/violet/teal)
-  - Written to all 5 Android mipmap densities (mdpi through xxxhdpi)
-  - ic_launcher.png and ic_launcher_round.png both updated
-  - Source 1024x1024 PNG saved to assets/icons/app_icon.png
-  - pubspec.yaml: declare assets/icons/ folder
+  - Custom crescent moon icon (gold/violet/teal rings, dark background)
+  - All 5 mipmap densities + ic_launcher_round + adaptive icon support
+  - mipmap-anydpi-v26 XML + ic_launcher_foreground for Android 8+
+  - values/colors.xml with ic_launcher_background (#060610)
+  - assets/icons/app_icon.png source file + pubspec.yaml declaration
 
-Splash screen:
-  - Replaced 3-dot pulsing loader with 5-bar animated bar loader
-  - Bars animate height 6px to 24px with staggered delays (mirror pattern)
-  - Center bar gold, adjacent bars violet, outer bars teal for depth
+Splash / routing fixes:
+  - app_router.dart: splash route never auto-redirected by GoRouter
+    (SplashPage owns its own lifecycle + 3s minimum)
+  - Login loading no longer jumps to splash (AuthLoading stays on login page)
+  - Eliminated double-splash flash on reopen for logged-in users
+  - splash_page.dart: replaced 3-dot loader with 5-bar animated bar loader
+
+Home screen:
+  - Forecast prediction text no longer truncated at 130 chars (full text shown)
+  - Action cards redesigned: horizontal icon+text layout, aspect ratio 2.1
+    (was 1.5 vertical stack) for compact and clean look
+
+Horoscope page:
+  - Period selector moved from AppBar compact toggles to full TabBar
+  - Tabs: Today / Weekly / Monthly / Yearly with gold indicator
+  - Content (prediction, scores, lucky factors, do/avoid) responds to tab
+
+No Connection page:
+  - Content now truly vertically centered (ConstrainedBox with minHeight)
 "@
 
 $tmpFile = [System.IO.Path]::GetTempFileName()

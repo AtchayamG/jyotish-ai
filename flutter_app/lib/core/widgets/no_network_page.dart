@@ -15,11 +15,19 @@ class NoNetworkPage extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.inkDeep,
     body: SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.x4l),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      child: SizedBox.expand(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.x4l),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
             // Animated icon
             Container(
               width: 100, height: 100,
@@ -59,11 +67,14 @@ class NoNetworkPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Checking every 6 seconds automatically',
-              style: AppTextStyles.bodyXs,
+                  Text(
+                    'Checking every 6 seconds automatically',
+                    style: AppTextStyles.bodyXs,
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     ),
