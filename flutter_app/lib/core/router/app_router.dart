@@ -2,6 +2,7 @@
 import "package:flutter/material.dart";
 import "package:go_router/go_router.dart";
 import "../../features/auth/presentation/bloc/auth_bloc.dart";
+import "../../features/auth/domain/entities/user_entity.dart";
 import "../../features/auth/presentation/pages/login_page.dart";
 import "../../features/auth/presentation/pages/register_page.dart";
 import "../../features/auth/presentation/pages/splash_page.dart";
@@ -48,6 +49,7 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
         final publicRoutes = [AppRoutes.login, AppRoutes.register];
         final onSplash     = going == AppRoutes.splash;
         final onComplete   = going == AppRoutes.profileComplete;
+        final onPricing    = going == AppRoutes.pricing;
 
         if (onSplash) return null;
 
@@ -60,8 +62,15 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
         if (isAuth) {
           final user = (s as AuthAuthenticated).user;
 
+          // ── Profile completion gate ────────────────────────────────────────
           if (!user.hasBirthDetails && !onComplete) {
             return AppRoutes.profileComplete;
+          }
+
+          // ── Free trial expiry gate ─────────────────────────────────────────
+          // Expired free users may only access the pricing/upgrade page.
+          if (user.isTrialExpired && !onPricing) {
+            return AppRoutes.pricing;
           }
 
           if (publicRoutes.contains(going)) return AppRoutes.home;

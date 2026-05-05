@@ -31,6 +31,8 @@ class UserModel {
   final double? birthLongitude;
   final double? birthTimezone;
   final String? moonSign;
+  // Registration timestamp — used for 3-day free trial
+  final String? registeredAt;
 
   const UserModel({
     required this.id,
@@ -47,6 +49,7 @@ class UserModel {
     this.birthLongitude,
     this.birthTimezone,
     this.moonSign,
+    this.registeredAt,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> j) {
@@ -70,6 +73,7 @@ class UserModel {
       birthLongitude: (j["birth_longitude"] as num?)?.toDouble(),
       birthTimezone: (j["birth_timezone"] as num?)?.toDouble(),
       moonSign: j["moon_sign"] as String?,
+      registeredAt: j["created_at"] as String?,
     );
   }
 }

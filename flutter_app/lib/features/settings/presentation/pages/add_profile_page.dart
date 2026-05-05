@@ -1,7 +1,10 @@
 // lib/features/settings/presentation/pages/add_profile_page.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/places_service.dart';
 
 class AddProfilePage extends StatefulWidget {
   const AddProfilePage({super.key});
@@ -11,15 +14,24 @@ class AddProfilePage extends StatefulWidget {
 }
 
 class _AddProfilePageState extends State<AddProfilePage> {
-  final _form = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
+  final _form      = GlobalKey<FormState>();
+  final _nameCtrl  = TextEditingController();
   final _placeCtrl = TextEditingController();
+  final _placeFocus = FocusNode();
 
   String _relationship = 'Spouse';
   String _gender = 'male';
   DateTime? _dob;
   TimeOfDay? _tob;
   bool _saving = false;
+
+  // ── Google Places autocomplete ─────────────────────────────────────────────
+  final PlacesService _places = PlacesService();
+  List<PlacePrediction> _predictions = [];
+  bool _loadingPlaces = false;
+  Timer? _debounce;
+  String? _placeLabel;
+  double? _lat, _lng, _tz;
 
   static const _relationships = [
     'Spouse', 'Child', 'Parent', 'Sibling', 'Grandparent',
@@ -30,8 +42,51 @@ class _AddProfilePageState extends State<AddProfilePage> {
   void dispose() {
     _nameCtrl.dispose();
     _placeCtrl.dispose();
+    _placeFocus.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
+
+  // ── Places handlers ────────────────────────────────────────────────────────
+
+  void _onPlaceInput(String value) {
+    _debounce?.cancel();
+    if (_placeLabel != null) {
+      setState(() { _placeLabel = null; _lat = null; _lng = null; _tz = null; });
+    }
+    if (value.trim().length < 3) {
+      setState(() { _predictions = []; _loadingPlaces = false; });
+      return;
+    }
+    setState(() => _loadingPlaces = true);
+    _debounce = Timer(const Duration(milliseconds: 450), () async {
+      final results = await _places.autocomplete(value);
+      if (!mounted) return;
+      setState(() { _predictions = results; _loadingPlaces = false; });
+    });
+  }
+
+  Future<void> _selectPlace(PlacePrediction p) async {
+    _placeFocus.unfocus();
+    setState(() {
+      _placeCtrl.text = p.description;
+      _placeLabel     = p.description;
+      _predictions    = [];
+      _loadingPlaces  = true;
+    });
+    final details = await _places.getDetails(p.placeId);
+    if (!mounted) return;
+    setState(() {
+      _loadingPlaces = false;
+      if (details != null) {
+        _lat = details.latitude;
+        _lng = details.longitude;
+        _tz  = details.timezone;
+      }
+    });
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -140,11 +195,15 @@ class _AddProfilePageState extends State<AddProfilePage> {
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderDefault),
+                    border: Border.all(
+                      color: _dob != null
+                          ? AppColors.gold.withAlpha(120)
+                          : AppColors.borderDefault,
+                    ),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.calendar_today_outlined, size: 16,
-                        color: AppColors.textHint),
+                    Icon(Icons.calendar_today_outlined, size: 16,
+                        color: _dob != null ? AppColors.gold : AppColors.textHint),
                     const SizedBox(width: 10),
                     Text(
                       _dob == null
@@ -154,6 +213,12 @@ class _AddProfilePageState extends State<AddProfilePage> {
                       style: TextStyle(
                         color: _dob == null ? AppColors.textHint : AppColors.textPrimary,
                       ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _dob != null ? Icons.check_circle_outline : Icons.chevron_right,
+                      size: 16,
+                      color: _dob != null ? AppColors.gold : AppColors.textHint,
                     ),
                   ]),
                 ),
@@ -191,15 +256,116 @@ class _AddProfilePageState extends State<AddProfilePage> {
             ),
             const SizedBox(height: 16),
 
-            // Place of Birth
+            // Place of Birth — Google Places autocomplete
             _Field(
               label: 'Place of Birth',
-              child: TextFormField(
-                controller: _placeCtrl,
-                style: const TextStyle(color: AppColors.textPrimary),
-                decoration: _inputDecoration('City, State, Country'),
-                validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Enter place of birth' : null,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: _placeCtrl,
+                    focusNode: _placeFocus,
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Type a city name…',
+                      hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 13),
+                      prefixIcon: const Icon(Icons.location_on_outlined,
+                          size: 18, color: AppColors.rose),
+                      suffixIcon: _loadingPlaces
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 16, height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: AppColors.gold),
+                              ),
+                            )
+                          : _lat != null
+                              ? const Icon(Icons.check_circle_outline,
+                                  size: 18, color: AppColors.gold)
+                              : null,
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: _lat != null
+                              ? AppColors.gold.withAlpha(120)
+                              : AppColors.borderDefault,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.gold, width: 1.5),
+                      ),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 14),
+                    ),
+                    onChanged: _onPlaceInput,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Enter place of birth' : null,
+                  ),
+
+                  // Suggestions dropdown
+                  if (_predictions.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.ink2,
+                      child: Column(
+                        children: _predictions.map((p) => InkWell(
+                          onTap: () => _selectPlace(p),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            child: Row(children: [
+                              const Icon(Icons.place_outlined,
+                                  size: 16, color: AppColors.gold),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(p.description,
+                                    style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 13)),
+                              ),
+                            ]),
+                          ),
+                        )).toList(),
+                      ),
+                    ),
+                  ],
+
+                  // Confirmed location coordinate pill
+                  if (_lat != null) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withAlpha(25),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.gold.withAlpha(60)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.my_location, size: 13, color: AppColors.gold),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Lat ${_lat!.toStringAsFixed(4)}  '
+                            'Lng ${_lng!.toStringAsFixed(4)}  '
+                            'UTC${_tz! >= 0 ? '+' : ''}${_tz!.toStringAsFixed(1)}',
+                            style: const TextStyle(
+                                fontSize: 10, color: AppColors.textSecondary,
+                                fontFamily: 'monospace'),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ],
+                ],
               ),
             ),
 
@@ -287,14 +453,21 @@ class _AddProfilePageState extends State<AddProfilePage> {
 
     setState(() => _saving = true);
 
-    // TODO: call API to save profile
+    // TODO: wire up to profile API endpoint
+    // final dob = '${_dob!.year}-${_dob!.month.toString().padLeft(2,'0')}-${_dob!.day.toString().padLeft(2,'0')}';
+    // final tob = _tob != null ? '${_tob!.hour.toString().padLeft(2,'0')}:${_tob!.minute.toString().padLeft(2,'0')}' : null;
+    // await profileRepo.createProfile(ProfileCreate(
+    //   fullName: _nameCtrl.text.trim(), relationship: _relationship, gender: _gender,
+    //   dateOfBirth: dob, timeOfBirth: tob,
+    //   placeOfBirth: _placeLabel, birthLatitude: _lat, birthLongitude: _lng, birthTimezone: _tz,
+    // ));
     await Future.delayed(const Duration(milliseconds: 800));
 
     setState(() => _saving = false);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('✓ Profile saved successfully'),
+        content: Text('Profile saved successfully'),
         backgroundColor: AppColors.teal,
       ));
       context.pop();

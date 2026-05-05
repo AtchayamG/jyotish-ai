@@ -131,11 +131,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onCheck(CheckAuthStatus e, Emitter<AuthState> emit) async {
     try {
       if (await storage.isLoggedIn()) {
-        final id        = await storage.getUserId()      ?? "";
-        final email     = await storage.getUserEmail()   ?? "";
-        final name      = await storage.getUserName()    ?? "";
-        final isAdmin   = await storage.getIsAdmin();
-        final tierStr   = await storage.getUserTier();
+        final id           = await storage.getUserId()      ?? "";
+        final email        = await storage.getUserEmail()   ?? "";
+        final name         = await storage.getUserName()    ?? "";
+        final isAdmin      = await storage.getIsAdmin();
+        final tierStr      = await storage.getUserTier();
+        final registeredAt = await storage.getRegisteredAt();
         // Derive tier: if stored as admin flag but tier wasn't saved correctly
         // (legacy accounts created before the tier system), trust isAdmin flag.
         final tier = isAdmin
@@ -153,11 +154,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // Emit quickly from local storage so UI shows immediately
         emit(AuthAuthenticated(UserEntity(
           id: id, email: email, fullName: name,
-          isPremium: tier != UserTier.free, isAdmin: isAdmin,
+          isPremium: tier != UserTier.free && tier != UserTier.basic,
+          isAdmin: isAdmin,
           userTier: tier,
           dateOfBirth: dob, timeOfBirth: tob, placeOfBirth: place,
           birthLatitude: lat, birthLongitude: lng, birthTimezone: tz,
           moonSign: moonSign,
+          registeredAt: registeredAt,
         )));
 
         // If moon sign is missing but user has birth details, fetch profile
@@ -167,11 +170,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             final profile = await remoteDs.fetchProfile();
             if (profile.moonSign != null && profile.moonSign!.isNotEmpty) {
               moonSign = profile.moonSign;
+              final freshRegisteredAt = profile.registeredAt ?? registeredAt;
               await storage.saveBirthDetails(moonSign: moonSign);
               await storage.saveUser(
                 id: id, email: email, name: name,
                 isAdmin: profile.isAdmin,
                 userTier: profile.userTier.name,
+                registeredAt: freshRegisteredAt,
               );
               // Re-emit with the freshly obtained moon sign + tier
               emit(AuthAuthenticated(UserEntity(
@@ -185,6 +190,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
                 birthLongitude: profile.birthLongitude ?? lng,
                 birthTimezone: profile.birthTimezone ?? tz,
                 moonSign: moonSign,
+                registeredAt: freshRegisteredAt,
               )));
             }
           } catch (_) {
@@ -206,7 +212,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await storage.saveTokens(access: r.accessToken, refresh: r.refreshToken);
       await storage.saveUser(
           id: r.user.id, email: r.user.email, name: r.user.fullName,
-          isAdmin: r.user.isAdmin, userTier: r.user.userTier.name);
+          isAdmin: r.user.isAdmin, userTier: r.user.userTier.name,
+          registeredAt: r.user.registeredAt);
       await storage.saveBirthDetails(
         dob:      r.user.dateOfBirth,
         tob:      r.user.timeOfBirth,
@@ -216,7 +223,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         timezone: r.user.birthTimezone,
         moonSign: r.user.moonSign,
       );
-      emit(AuthAuthenticated(r.user));
+      emit(AuthAuthenticated(UserEntity(
+        id:             r.user.id,
+        email:          r.user.email,
+        fullName:       r.user.fullName,
+        isPremium:      r.user.isPremium,
+        isAdmin:        r.user.isAdmin,
+        userTier:       r.user.userTier,
+        dateOfBirth:    r.user.dateOfBirth,
+        timeOfBirth:    r.user.timeOfBirth,
+        placeOfBirth:   r.user.placeOfBirth,
+        birthLatitude:  r.user.birthLatitude,
+        birthLongitude: r.user.birthLongitude,
+        birthTimezone:  r.user.birthTimezone,
+        moonSign:       r.user.moonSign,
+        registeredAt:   r.user.registeredAt,
+      )));
     } catch (err) {
       emit(AuthError(_clean(err.toString())));
     }
@@ -237,7 +259,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await storage.saveTokens(access: r.accessToken, refresh: r.refreshToken);
       await storage.saveUser(
           id: r.user.id, email: r.user.email, name: r.user.fullName,
-          isAdmin: r.user.isAdmin, userTier: r.user.userTier.name);
+          isAdmin: r.user.isAdmin, userTier: r.user.userTier.name,
+          registeredAt: r.user.registeredAt);
       await storage.saveBirthDetails(
         dob:      r.user.dateOfBirth,
         tob:      r.user.timeOfBirth,
@@ -247,7 +270,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         timezone: r.user.birthTimezone,
         moonSign: r.user.moonSign,
       );
-      emit(AuthAuthenticated(r.user));
+      emit(AuthAuthenticated(UserEntity(
+        id:             r.user.id,
+        email:          r.user.email,
+        fullName:       r.user.fullName,
+        isPremium:      r.user.isPremium,
+        isAdmin:        r.user.isAdmin,
+        userTier:       r.user.userTier,
+        dateOfBirth:    r.user.dateOfBirth,
+        timeOfBirth:    r.user.timeOfBirth,
+        placeOfBirth:   r.user.placeOfBirth,
+        birthLatitude:  r.user.birthLatitude,
+        birthLongitude: r.user.birthLongitude,
+        birthTimezone:  r.user.birthTimezone,
+        moonSign:       r.user.moonSign,
+        registeredAt:   r.user.registeredAt,
+      )));
     } catch (err) {
       emit(AuthError(_clean(err.toString())));
     }
@@ -290,6 +328,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         birthLongitude: updated.birthLongitude,
         birthTimezone:  updated.birthTimezone,
         moonSign:       updated.moonSign,
+        // Preserve registeredAt from current state — updateProfile doesn't change it
+        registeredAt:   current.user.registeredAt,
       )));
     } catch (err) {
       // Restore previous state on failure
@@ -318,6 +358,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       birthLongitude: current.user.birthLongitude,
       birthTimezone:  current.user.birthTimezone,
       moonSign:       e.moonSign,
+      registeredAt:   current.user.registeredAt,
     )));
   }
 

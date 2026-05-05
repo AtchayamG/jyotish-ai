@@ -32,7 +32,8 @@ class SecureStorage implements TokenStorage {
   static const _kLat       = "birth_lat";
   static const _kLng       = "birth_lng";
   static const _kTz        = "birth_tz";
-  static const _kMoonSign  = "moon_sign";
+  static const _kMoonSign       = "moon_sign";
+  static const _kRegisteredAt  = "registered_at";
 
   // ── Token interface ───────────────────────────────────────────────────────
 
@@ -67,6 +68,7 @@ class SecureStorage implements TokenStorage {
     required String name,
     bool isAdmin = false,
     String userTier = "free",
+    String? registeredAt,
   }) async {
     try {
       await _s.write(key: _kUserId, value: id);
@@ -74,6 +76,9 @@ class SecureStorage implements TokenStorage {
       await _s.write(key: _kName, value: name);
       await _s.write(key: _kIsAdmin, value: isAdmin.toString());
       await _s.write(key: _kUserTier, value: userTier);
+      if (registeredAt != null) {
+        await _s.write(key: _kRegisteredAt, value: registeredAt);
+      }
     } catch (_) {}
   }
 
@@ -100,6 +105,10 @@ class SecureStorage implements TokenStorage {
     try {
       return await _s.read(key: _kUserTier) ?? "free";
     } catch (_) { return "free"; }
+  }
+
+  Future<String?> getRegisteredAt() async {
+    try { return await _s.read(key: _kRegisteredAt); } catch (_) { return null; }
   }
 
   Future<bool> isLoggedIn() async => (await getAccessToken()) != null;

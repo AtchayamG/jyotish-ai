@@ -43,30 +43,39 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
-fix: admin tier + responsive shell + AI chat overhaul
+feat: basic tier + free trial + favicon + Places in AddProfile
 
-Admin tier fix:
-  - user_schema.py: @model_validator on UserPublic reconciles is_admin/is_premium
-    with user_tier on every response - no DB migration needed
-  - auth_bloc.dart: _onCheck derives tier from isAdmin flag in SecureStorage
-  - Admin users see correct unlimited tier without re-login
+Monetization - Free tier 3-day trial:
+  - user_entity.dart: isTrialExpired getter (DateTime.parse + 3-day window)
+  - app_router.dart: redirect to /pricing for expired free users
+  - pricing_page.dart: PopScope(canPop: false) when trial expired,
+    trial-expired red banner, back button hidden for expired users
 
-Responsive web shell:
-  - shell_page.dart: LayoutBuilder + 720px breakpoint (not kIsWeb alone)
-  - Mobile browsers (<720px): bottom nav bar, same as native app
-  - Desktop browsers (>=720px): sidebar + 860px max-width content area
+Monetization - Basic tier (Rs. 99/month):
+  - backend user_schema.py: UserTier.basic = basic added to enum
+  - user_entity.dart: UserTier.basic with 0 extra profiles, full features
+  - pricing_page.dart: Basic plan card between Free and Premium
 
-AI Chat overhaul:
-  - Intent detection: 17 categories (career, marriage, dasha, lagna, etc.)
-  - Focused context: strips planet list for simple intents to reduce tokens
-  - Dynamic system prompt per intent with specific instructions
-  - Intent-aware max_tokens (300-800)
-  - Firestore chat history: load last 10, save each exchange per user
-  - /chat endpoint now authenticated - birth from user profile, not client
-  - Removed userContext from all Flutter layers (datasource, repo, bloc, page)
+Registration timestamp for trial:
+  - auth_model.dart: UserModel.registeredAt parses created_at from JSON
+  - secure_storage.dart: _kRegisteredAt key, saveUser registeredAt param,
+    getRegisteredAt() method
+  - auth_bloc.dart: save + load registeredAt on login/register/_onCheck,
+    thread through all UserEntity constructions
 
-Push script:
-  - fetch + rebase + push with auto force-with-lease fallback
+Admin portal:
+  - admin/index.html: all tier dropdowns (add-user, edit-user, filter)
+    now include basic and max options
+
+Web favicon:
+  - web/index.html: SVG favicon link, updated title to Jyotish AI,
+    improved meta description and apple-mobile tags
+  - web/favicon.svg: new Jyotish AI 8-pointed star icon (gold on dark)
+
+Add Profile - Google Places autocomplete:
+  - add_profile_page.dart: full PlacesService integration matching
+    register_page pattern (debounce 450ms, dropdown, coord pill,
+    lat/lng/tz captured for astro calculations)
 "@
 
 $tmpFile = [System.IO.Path]::GetTempFileName()

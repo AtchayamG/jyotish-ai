@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 
 class UserTier(str, Enum):
     free    = "free"
+    basic   = "basic"
     premium = "premium"
     max     = "max"
     admin   = "admin"
@@ -107,6 +108,7 @@ class UserPublic(UserBase):
             self.user_tier = UserTier.admin
         elif self.is_premium and self.user_tier == UserTier.free:
             self.user_tier = UserTier.premium
+        # basic tier users keep their tier as-is; no special reconciliation needed
         return self
 
 
