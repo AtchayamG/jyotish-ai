@@ -43,17 +43,54 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
-fix: build errors - missing AuthModel import + jcenter for flutter_secure_storage
+feat: web responsive layout + AI chat overhaul (intent detection, history, auth)
 
-Dart compile fix:
-  - auth_repository_impl.dart: added missing import for auth_model.dart
-  - _authModelToEntity(AuthModel m) now resolves correctly on all platforms
+Build fixes (from previous commit):
+  - auth_repository_impl.dart: added missing AuthModel import
+  - build.gradle.kts + settings.gradle.kts: added jcenter() for flutter_secure_storage
 
-Android Gradle fix:
-  - build.gradle.kts: added jcenter() to allprojects.repositories
-  - settings.gradle.kts: added jcenter() to pluginManagement.repositories
-  - Resolves flutter_secure_storage 9.2.2 dependency failures in CI:
-    kotlin-stdlib-jdk8:1.9.20, commons-io:2.13.0, asm:9.6 now resolvable
+Web responsive design:
+  - shell_page.dart: completely redesigned web layout
+    * Replaces 430px phone-shell with proper sidebar + content layout
+    * Left sidebar (220px): brand logo, nav items (animated highlight), live indicator
+    * Content area: Expanded with ConstrainedBox(maxWidth: 860) for readability
+    * Mobile unchanged — bottom nav bar untouched
+    * AnimatedContainer on active nav item for smooth transitions
+
+AI Chat — full architecture overhaul:
+  Backend (ai_chat_service.py):
+  - Added _detect_intent(): 17 intent categories (career, marriage, dasha, lagna,
+    nakshatra, rasi, gemstone, remedy, timing, forecast, finance, education,
+    travel, child, planets, transit, general)
+  - Added _build_focused_context(): strips planet list for simple intents
+    (lagna/rasi/nakshatra/timing/gemstone/remedy/forecast) to reduce token count
+  - Added _build_system_prompt(): injects FOCUSED instruction per intent,
+    no more generic responses for every question
+  - Added _RESPONSE_TOKENS: intent-aware max_tokens (300–800 depending on complexity)
+  - Added _load_history(): fetches last 10 messages from Firestore chats/{user_id}/messages
+  - Added _save_messages(): persists user+AI exchange to Firestore after each response
+  - chat() now accepts user_id + birth from authenticated endpoint
+  - Falls back to client-sent history if Firestore unavailable
+
+  Backend (astrology.py):
+  - /chat endpoint now requires CurrentUser authentication
+  - Birth details fetched from user's stored profile (no client upload needed)
+  - user_id passed to service for Firestore history persistence
+
+  Flutter (datasources/chat_remote_datasource.dart):
+  - Removed user_birth_details from request body (backend fetches from profile)
+  - Auth token automatically sent by TokenInterceptor
+
+  Flutter (chat_repository.dart, chat_repository_impl.dart, send_message_usecase.dart):
+  - Removed userContext param from all layers
+
+  Flutter (chat_bloc.dart):
+  - SendMessage event no longer carries userContext
+  - Clean, simplified event/state model
+
+  Flutter (ai_chat_page.dart):
+  - Removed _userContext() method
+  - _send() simplified to just pass message
 "@
 
 $tmpFile = [System.IO.Path]::GetTempFileName()

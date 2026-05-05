@@ -5,9 +5,8 @@ import '../models/chat_model.dart';
 abstract class ChatRemoteDataSource {
   Future<ChatResponseModel> sendMessage(
     String msg,
-    List<ChatMessageModel> history, {
-    Map<String, dynamic>? userContext,
-  });
+    List<ChatMessageModel> history,
+  );
 }
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
@@ -17,18 +16,17 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   Future<ChatResponseModel> sendMessage(
     String msg,
-    List<ChatMessageModel> history, {
-    Map<String, dynamic>? userContext,
-  }) {
-    final body = <String, dynamic>{
-      'message': msg,
-      'history': history.map((m) => m.toJson()).toList(),
-    };
-    if (userContext != null) body['user_birth_details'] = userContext;
-
+    List<ChatMessageModel> history,
+  ) {
+    // Send only the message and last-10 history.
+    // Birth chart is fetched server-side from the authenticated user's profile.
+    // Auth token is automatically attached by TokenInterceptor.
     return _c.post(
       ApiConstants.aiChat,
-      body: body,
+      body: {
+        'message': msg,
+        'history': history.map((m) => m.toJson()).toList(),
+      },
       fromJson: ChatResponseModel.fromJson,
     );
   }

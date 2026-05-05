@@ -27,36 +27,12 @@ class _AiChatPageState extends State<AiChatPage> {
     super.dispose();
   }
 
-  /// Build user birth details map from AuthBloc to pass as context to AI.
-  Map<String, dynamic>? _userContext() {
-    final authState = context.read<AuthBloc>().state;
-    if (authState is! AuthAuthenticated) return null;
-    final u = authState.user;
-    if (!u.hasBirthDetails) return null;
-
-    final dob = (u.dateOfBirth ?? '').split('-');
-    final tob = (u.timeOfBirth ?? '06:00').split(':');
-    return {
-      'name':      u.fullName,
-      'year':      dob.length == 3 ? int.tryParse(dob[0]) ?? 1990 : 1990,
-      'month':     dob.length == 3 ? int.tryParse(dob[1]) ?? 1    : 1,
-      'day':       dob.length == 3 ? int.tryParse(dob[2]) ?? 1    : 1,
-      'hour':      tob.length >= 1 ? int.tryParse(tob[0]) ?? 6    : 6,
-      'minute':    tob.length >= 2 ? int.tryParse(tob[1]) ?? 0    : 0,
-      'latitude':  u.birthLatitude  ?? 13.08,
-      'longitude': u.birthLongitude ?? 80.27,
-      'timezone':  u.birthTimezone  ?? 5.5,
-      'ayanamsa':  'lahiri',
-      'place':     u.placeOfBirth   ?? '',
-      'moon_sign': u.moonSign       ?? '',
-    };
-  }
-
   void _send([String? text]) {
     final msg = text ?? _ctrl.text.trim();
     if (msg.isEmpty) return;
     _ctrl.clear();
-    context.read<ChatBloc>().add(SendMessage(msg, userContext: _userContext()));
+    // Birth chart is fetched server-side from the authenticated user profile.
+    context.read<ChatBloc>().add(SendMessage(msg));
     _scrollToBottom();
   }
 

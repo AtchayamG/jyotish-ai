@@ -7,8 +7,7 @@ class SendMessageUseCase {
 
   Future<ChatResponseModel> call(
     String msg,
-    List<ChatMessageModel> history, {
-    Map<String, dynamic>? userContext,
-  }) =>
-      _r.sendMessage(msg, history, userContext: userContext);
+    List<ChatMessageModel> history,
+  ) =>
+      _r.sendMessage(msg, history);
 }

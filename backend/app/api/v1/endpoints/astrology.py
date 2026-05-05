@@ -171,10 +171,13 @@ async def get_muhurtham(
 @router.post("/chat", response_model=AIChatResponse)
 async def ai_chat(
     req: AIChatRequest,
+    current_user: CurrentUser,
     svc: Annotated[AIChatService, Depends(_chat_service)],
 ):
-    """AI-powered Vedic astrology chatbot."""
-    return await svc.chat(req)
+    """AI-powered Vedic astrology chatbot — authenticated, chart-aware."""
+    # Build birth details from stored profile (no need for client to send)
+    birth = _birth_from_user(current_user) if current_user.date_of_birth else None
+    return await svc.chat(req, user_id=current_user.id, birth=birth)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

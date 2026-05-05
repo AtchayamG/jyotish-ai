@@ -12,8 +12,7 @@ abstract class ChatEvent extends Equatable {
 
 class SendMessage extends ChatEvent {
   final String message;
-  final Map<String, dynamic>? userContext;
-  const SendMessage(this.message, {this.userContext});
+  const SendMessage(this.message);
   @override List<Object?> get props => [message];
 }
 
@@ -61,10 +60,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(ChatUpdated(messages: List.from(_history), isLoading: true));
 
     try {
+      // Send current message + local history for context.
+      // Server uses authenticated user profile for birth details.
       final resp = await _uc(
         e.message,
         _history.sublist(0, _history.length - 1),
-        userContext: e.userContext,
       );
       final aiMsg = ChatMessageModel(
           role: 'assistant', content: resp.reply, timestamp: DateTime.now());

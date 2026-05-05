@@ -9,8 +9,7 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<ChatResponseModel> sendMessage(
     String msg,
-    List<ChatMessageModel> history, {
-    Map<String, dynamic>? userContext,
-  }) =>
-      _ds.sendMessage(msg, history, userContext: userContext);
+    List<ChatMessageModel> history,
+  ) =>
+      _ds.sendMessage(msg, history);
 }
