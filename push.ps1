@@ -1,9 +1,9 @@
-# push.ps1  — reusable commit+push script
+# push.ps1 - commit + push script
 # Usage: powershell -ExecutionPolicy Bypass -File .\push.ps1
-# Edit $msg below to change the commit message before running.
 
 Set-Location "D:\Work\Claude\Jyotish"
 
+# Remove stale git lock if present
 $lock = ".git\index.lock"
 if (Test-Path $lock) { Remove-Item $lock -Force }
 
@@ -43,84 +43,30 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
-fix: admin tier not recognized — reconcile user_tier from is_admin flag
+fix: admin tier + responsive shell + AI chat overhaul
 
-Root cause: admin accounts created before user_tier system have is_admin=true
-in Firestore but user_tier="free" (field didn't exist yet). Both layers fixed:
+Admin tier fix:
+  - user_schema.py: @model_validator on UserPublic reconciles is_admin/is_premium
+    with user_tier on every response - no DB migration needed
+  - auth_bloc.dart: _onCheck derives tier from isAdmin flag in SecureStorage
+  - Admin users see correct unlimited tier without re-login
 
-Backend (user_schema.py):
-  - Added @model_validator on UserPublic.reconcile_tier()
-  - is_admin=True → user_tier overridden to UserTier.admin on every response
-  - is_premium=True + free tier → promoted to UserTier.premium
-  - No DB migration needed — runs at serialization time on every API call
+Responsive web shell:
+  - shell_page.dart: LayoutBuilder + 720px breakpoint (not kIsWeb alone)
+  - Mobile browsers (<720px): bottom nav bar, same as native app
+  - Desktop browsers (>=720px): sidebar + 860px max-width content area
 
-Flutter (auth_bloc.dart _onCheck):
-  - isAdmin flag from SecureStorage now overrides parsed tier immediately
-  - Admin users see correct tier on app open without re-login required
-  - tier = isAdmin ? UserTier.admin : (parsed from storage)
+AI Chat overhaul:
+  - Intent detection: 17 categories (career, marriage, dasha, lagna, etc.)
+  - Focused context: strips planet list for simple intents to reduce tokens
+  - Dynamic system prompt per intent with specific instructions
+  - Intent-aware max_tokens (300-800)
+  - Firestore chat history: load last 10, save each exchange per user
+  - /chat endpoint now authenticated - birth from user profile, not client
+  - Removed userContext from all Flutter layers (datasource, repo, bloc, page)
 
-fix: truly responsive shell — width-based breakpoint replaces kIsWeb platform check
-
-Root cause: kIsWeb is true on mobile browsers, so everyone on a narrow screen
-got the sidebar layout → unreadable. Fix: LayoutBuilder + 720px breakpoint.
-
-shell_page.dart rewrite:
-  - LayoutBuilder checks constraints.maxWidth, not kIsWeb alone
-  - < 720px (mobile app + mobile browser): _MobileShell with bottom nav bar
-  - >= 720px AND web: _DesktopShell with sidebar + constrained content area
-  - Mobile native app always uses _MobileShell (kIsWeb guard preserved)
-  - Sidebar: 220px, brand + animated nav items + live indicator footer
-  - Content: Expanded → Center → ConstrainedBox(maxWidth: 860)
-  - AnimatedContainer on active sidebar item for smooth 180ms transitions
-
-feat: web responsive layout + AI chat overhaul (intent detection, history, auth)
-
-Build fixes (from previous commit):
-  - auth_repository_impl.dart: added missing AuthModel import
-  - build.gradle.kts + settings.gradle.kts: added jcenter() for flutter_secure_storage
-
-Web responsive design:
-  - shell_page.dart: completely redesigned web layout
-    * Replaces 430px phone-shell with proper sidebar + content layout
-    * Left sidebar (220px): brand logo, nav items (animated highlight), live indicator
-    * Content area: Expanded with ConstrainedBox(maxWidth: 860) for readability
-    * Mobile unchanged — bottom nav bar untouched
-    * AnimatedContainer on active nav item for smooth transitions
-
-AI Chat — full architecture overhaul:
-  Backend (ai_chat_service.py):
-  - Added _detect_intent(): 17 intent categories (career, marriage, dasha, lagna,
-    nakshatra, rasi, gemstone, remedy, timing, forecast, finance, education,
-    travel, child, planets, transit, general)
-  - Added _build_focused_context(): strips planet list for simple intents
-    (lagna/rasi/nakshatra/timing/gemstone/remedy/forecast) to reduce token count
-  - Added _build_system_prompt(): injects FOCUSED instruction per intent,
-    no more generic responses for every question
-  - Added _RESPONSE_TOKENS: intent-aware max_tokens (300–800 depending on complexity)
-  - Added _load_history(): fetches last 10 messages from Firestore chats/{user_id}/messages
-  - Added _save_messages(): persists user+AI exchange to Firestore after each response
-  - chat() now accepts user_id + birth from authenticated endpoint
-  - Falls back to client-sent history if Firestore unavailable
-
-  Backend (astrology.py):
-  - /chat endpoint now requires CurrentUser authentication
-  - Birth details fetched from user's stored profile (no client upload needed)
-  - user_id passed to service for Firestore history persistence
-
-  Flutter (datasources/chat_remote_datasource.dart):
-  - Removed user_birth_details from request body (backend fetches from profile)
-  - Auth token automatically sent by TokenInterceptor
-
-  Flutter (chat_repository.dart, chat_repository_impl.dart, send_message_usecase.dart):
-  - Removed userContext param from all layers
-
-  Flutter (chat_bloc.dart):
-  - SendMessage event no longer carries userContext
-  - Clean, simplified event/state model
-
-  Flutter (ai_chat_page.dart):
-  - Removed _userContext() method
-  - _send() simplified to just pass message
+Push script:
+  - fetch + rebase + push with auto force-with-lease fallback
 "@
 
 $tmpFile = [System.IO.Path]::GetTempFileName()
@@ -128,7 +74,20 @@ $tmpFile = [System.IO.Path]::GetTempFileName()
 git commit -F $tmpFile
 Remove-Item $tmpFile -Force
 
-# Pull remote changes then push
-git pull origin master --rebase
-git push origin master
+# Sync with remote then push
+git fetch origin master
+
+git rebase origin/master
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Rebase conflict - aborting, using force-with-lease" -ForegroundColor Yellow
+    git rebase --abort
+    git push origin master --force-with-lease
+} else {
+    git push origin master
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Push rejected - retrying with force-with-lease" -ForegroundColor Yellow
+        git push origin master --force-with-lease
+    }
+}
+
 Write-Host "Done!" -ForegroundColor Green
