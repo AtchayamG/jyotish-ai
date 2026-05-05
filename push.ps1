@@ -43,25 +43,31 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
-fix: app icon correct path, horoscope period content, home spacing, Jyotish subfolder removed
+feat: AI kundli chat, date-aware horoscopes, home page redesign
 
-App icon (correct git paths):
-  - Icons now in correct flutter_app/android mipmap folders (not Jyotish subfolder)
-  - All 5 densities: ic_launcher + ic_launcher_round + ic_launcher_foreground
-  - mipmap-anydpi-v26/ic_launcher.xml + ic_launcher_round.xml (Android 8+)
-  - values/colors.xml: ic_launcher_background = #060610
+AI Chatbot - personalized with real birth chart:
+  - Computes full Vedic chart via Swiss Ephemeris on every chat request
+  - Injects lagna, rasi, nakshatra, all 9 planet positions into system prompt
+  - Implements Vimshottari dasha calculator: correct mahadasha + antardasha with dates
+  - Rule-based fallback now answers lagna/rasi/nakshatra/dasha from actual chart
+  - CRITICAL RULES force AI to never give generic responses; always reference user chart
+  - max_tokens raised to 800 for richer chart-based answers
 
-Horoscope - rich period-specific content:
-  - Weekly: full Mon-Sun day-by-day breakdown per rasi
-  - Monthly: career/finance/relationships/health/spiritual sections per rasi
-  - Yearly: complete annual forecast with quarterly guidance per rasi
-  - Daily predictions retained; horo_type now fully drives content
+Horoscope - dynamically date-aware:
+  - Daily: 3 variants per rasi, rotates deterministically by calendar date (hashlib seed)
+  - Weekly: actual date range in prediction header (e.g. '5-11 May 2026')
+  - Monthly: current month name prepended to prediction
+  - Daily scores jitter slightly per day (+/-0.5) for realism
+  - AI path (OpenAI): passes full date string + ISO week number for genuinely unique GPT content
+  - date_range fields now show real dates instead of 'Today / This Week / This Month'
 
-Home page:
-  - Removed excess bottom padding (x3l -> lg) below Quick Actions
-
-Repo cleanup:
-  - Removed Jyotish/ subfolder from git tracking and local disk
+Home page redesign - astrological features replace Quick Actions:
+  - REMOVED: Quick Actions grid (redundant with bottom nav bar)
+  - ADDED: Today's Cosmic Snapshot card - day lord, planet symbol, focus theme
+  - ADDED: Moon Phase card - live phase calculation from Julian Day, days to next event
+  - ADDED: Daily Mantra card - planet mantra for the day (108x chanting reminder)
+  - ADDED: Auspicious Times card - Brahma Muhurta, Abhijit Muhurta, Rahu Kaal per weekday
+  - ADDED: Your Chart card - moon sign, birth place, DOB pills + link to full Kundli
 "@
 
 $tmpFile = [System.IO.Path]::GetTempFileName()

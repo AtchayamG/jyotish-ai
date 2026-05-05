@@ -8,6 +8,8 @@ Prokerala Credentials (set in Render env vars):
   PROKERALA_CLIENT_ID     = e87c610a-a146-43c9-a8f5-274fabdd3b1c
   PROKERALA_CLIENT_SECRET = ag1OUvgqM1S2Uz2A7DKOGeu8AEXoXs5P35IMbK6c
 """
+import datetime
+import hashlib
 import logging
 import time
 from typing import Any, Dict, Optional
@@ -285,43 +287,140 @@ class AstrologyRepository:
         }
 
         # ── Period-specific predictions ───────────────────────────────────────
-        _DAILY: Dict[str, str] = {
-            "Mesha":     ("Jupiter's beneficial aspect on your 10th house signals professional breakthroughs and public recognition. "
-                          "Mars, your ruling planet, grants courage to initiate bold ventures. "
-                          "Financial gains come through decisive action — channel your natural energy constructively."),
-            "Vrishabha": ("Venus, your ruling planet, showers grace on personal relationships and creative pursuits. "
-                          "Financial stability improves as Saturn's steady influence favours disciplined savings. "
-                          "Your patience and persistence will yield tangible, lasting results."),
-            "Mithuna":   ("Mercury sharpens your intellect and communication skills — ideal for negotiations and new learning. "
-                          "Opportunities arise through networking; your versatility is your greatest asset. "
-                          "Keep an open mind and explore multiple avenues simultaneously."),
-            "Karka":     ("The Moon, your ruling planet, deepens emotional intelligence and intuition. "
-                          "Home, family, and inner peace are highlighted — nurturing your roots brings strength. "
-                          "Creative and spiritual activities flourish; trust your instincts above all else."),
-            "Simha":     ("The Sun illuminates your natural leadership qualities, drawing admiration and opportunities. "
-                          "Creative projects and self-expression receive strong cosmic support right now. "
-                          "Use your charisma to inspire others; authority figures are receptive to your ideas."),
-            "Kanya":     ("Mercury bestows analytical clarity and meticulous attention to detail. "
-                          "Health and service-oriented activities are favoured — a great time to refine your routines. "
-                          "Your practical wisdom and methodical approach help you solve complex problems elegantly."),
-            "Tula":      ("Venus graces Tula with harmony, diplomacy, and aesthetic sensibility. "
-                          "Partnerships — business and personal — thrive under balanced Venusian energy. "
-                          "Legal matters and negotiations favour you; seek win-win outcomes for lasting results."),
-            "Vrischika": ("Mars intensifies your determination and gives you the power to transform challenges. "
-                          "Emotional clarity arrives after deep introspection; trust your powerful instincts. "
-                          "Research, hidden resources, and investigative work receive strong cosmic support."),
-            "Dhanu":     ("Jupiter, your ruling planet, expands wisdom, optimism, and opportunities for growth. "
-                          "Higher education, philosophy, and spiritual pursuits are all favoured under this influence. "
-                          "Fortune favours the bold — your natural optimism inspires everyone around you."),
-            "Makara":    ("Saturn rewards your discipline and sustained effort with lasting achievements. "
-                          "Career advancement and professional recognition are highlighted during this period. "
-                          "Long-term investments and structured plans yield excellent returns — patience is your virtue."),
-            "Kumbha":    ("Saturn and Rahu combine to bring innovation, humanitarian impulses, and unconventional thinking. "
-                          "Technology, social causes, and group activities receive strong cosmic support. "
-                          "Your visionary ideas can create meaningful, lasting change — embrace the unexpected."),
-            "Meena":     ("Jupiter deepens your spiritual sensitivity, compassion, and creative imagination. "
-                          "Artistic, healing, and spiritual vocations flourish under this mystical influence. "
-                          "Acts of selfless service attract powerful blessings — your intuition is your greatest guide."),
+        # Each sign has 3 daily variants; selection rotates deterministically by date.
+        _DAILY: Dict[str, list] = {
+            "Mesha": [
+                ("Jupiter's beneficial aspect on your 10th house signals professional breakthroughs and public recognition. "
+                 "Mars, your ruling planet, grants courage to initiate bold ventures. "
+                 "Financial gains come through decisive action — channel your natural energy constructively."),
+                ("Saturn's measured influence in your 10th house brings career restructuring that ultimately serves your long-term ambitions. "
+                 "A professional challenge that seemed like an obstacle reveals itself as a strategic redirection. "
+                 "Focus on systems and process improvements today — they yield lasting gains."),
+                ("Venus casts warm light on your interpersonal connections, making today excellent for collaborative ventures and heartfelt communication. "
+                 "A creative insight or aesthetic solution to a work problem earns genuine appreciation. "
+                 "Avoid impulsive financial decisions after midday when lunar energy shifts."),
+            ],
+            "Vrishabha": [
+                ("Venus, your ruling planet, showers grace on personal relationships and creative pursuits. "
+                 "Financial stability improves as Saturn's steady influence favours disciplined savings. "
+                 "Your patience and persistence will yield tangible, lasting results."),
+                ("The Moon's transit through your 11th house activates social networks and long-term aspirations. "
+                 "A group setting or online community introduces you to a genuinely valuable connection. "
+                 "Income tied to creative work or social platforms sees encouraging movement today."),
+                ("Mercury sharpens your financial acumen, making today ideal for reviewing budgets, renegotiating terms, or exploring new revenue streams. "
+                 "Your methodical approach wins trust in professional settings. "
+                 "A slow-moving career matter finally gains momentum through your patient consistency."),
+            ],
+            "Mithuna": [
+                ("Mercury sharpens your intellect and communication skills — ideal for negotiations and new learning. "
+                 "Opportunities arise through networking; your versatility is your greatest asset. "
+                 "Keep an open mind and explore multiple avenues simultaneously."),
+                ("The Sun illuminates your 11th house of dreams and social spheres, drawing ambitious, inspiring people into your orbit. "
+                 "A visionary idea discussed casually today becomes a serious collaborative project within days. "
+                 "Avoid scattering focus; prioritise the one conversation that matters most."),
+                ("Mars lends unusual physical energy and assertiveness to your typically cerebral nature. "
+                 "A decisive move in your professional life — the one you have been overthinking — produces immediate positive results. "
+                 "Evening brings a surprising message or reunion with someone meaningful from your past."),
+            ],
+            "Karka": [
+                ("The Moon, your ruling planet, deepens emotional intelligence and intuition. "
+                 "Home, family, and inner peace are highlighted — nurturing your roots brings strength. "
+                 "Creative and spiritual activities flourish; trust your instincts above all else."),
+                ("Saturn steadies your 7th house, bringing durability and practical depth to your most important relationships. "
+                 "A partnership that weathers today's demands reveals its true strength and mutual respect. "
+                 "Professional collaborations benefit from direct, structured conversations today."),
+                ("Jupiter's expansive gaze activates your career and public reputation sector, bringing quiet but significant recognition. "
+                 "Your emotional intelligence reads a workplace situation correctly — trust that reading over external pressure. "
+                 "A financial intuition proves accurate; act on it before the window closes."),
+            ],
+            "Simha": [
+                ("The Sun illuminates your natural leadership qualities, drawing admiration and opportunities. "
+                 "Creative projects and self-expression receive strong cosmic support right now. "
+                 "Use your charisma to inspire others; authority figures are receptive to your ideas."),
+                ("Mars energises your communication sector with magnetic force — your words carry power, persuasion, and clarity today. "
+                 "A presentation, pitch, or important message lands with exceptional impact. "
+                 "Business contacts made through confident outreach today develop into meaningful alliances."),
+                ("Venus softens your natural intensity and brings warmth to collaborative work and personal partnerships. "
+                 "A joint venture or creative collaboration with someone you admire produces something genuinely remarkable. "
+                 "Financial matters tied to partnerships or joint accounts show encouraging movement."),
+            ],
+            "Kanya": [
+                ("Mercury bestows analytical clarity and meticulous attention to detail. "
+                 "Health and service-oriented activities are favoured — a great time to refine your routines. "
+                 "Your practical wisdom and methodical approach help you solve complex problems elegantly."),
+                ("Jupiter's broad, beneficent influence lands on your domestic sector, blessing home decisions and family dynamics with rare harmony. "
+                 "A property matter, family discussion, or home improvement project moves forward beautifully. "
+                 "Your inner world is more settled than usual — work from that calm centre."),
+                ("The Moon heightens emotional awareness and intuitive perception to an unusual degree. "
+                 "Pay attention to the quiet signals your body and environment are sending — they carry more information than the obvious data. "
+                 "A health adjustment made today with consistent follow-through transforms your vitality over the coming weeks."),
+            ],
+            "Tula": [
+                ("Venus graces Tula with harmony, diplomacy, and aesthetic sensibility. "
+                 "Partnerships — business and personal — thrive under balanced Venusian energy. "
+                 "Legal matters and negotiations favour you; seek win-win outcomes for lasting results."),
+                ("Mars activates your professional ambitions with unusual directness — step forward on a leadership opportunity you have been hesitating to claim. "
+                 "Your naturally diplomatic approach combined with today's Mars-driven confidence produces an irresistible professional impression. "
+                 "A bold career move is your most auspicious action today."),
+                ("The Moon's transit through your domestic sector brings family matters to the forefront with unexpected warmth and resolution. "
+                 "A conversation with a parent or sibling clears a misunderstanding that has been quietly weighing on you. "
+                 "Creative inspiration arrives in the late afternoon — capture it immediately."),
+            ],
+            "Vrischika": [
+                ("Mars intensifies your determination and gives you the power to transform challenges. "
+                 "Emotional clarity arrives after deep introspection; trust your powerful instincts. "
+                 "Research, hidden resources, and investigative work receive strong cosmic support."),
+                ("Venus softens Vrischika's intensity today and invites genuine warmth into typically guarded relational spaces. "
+                 "A creative breakthrough or aesthetic solution emerges when you stop forcing the outcome. "
+                 "Financial opportunities connected to beauty, luxury, or creative fields are especially favoured today."),
+                ("Jupiter's expansive energy activates your financial sector, bringing clarity and optimism to matters of accumulated resources. "
+                 "A long-term investment or family wealth question benefits from today's unusually clear-headed analysis. "
+                 "Your instinct about a person's trustworthiness is completely accurate — honour it."),
+            ],
+            "Dhanu": [
+                ("Jupiter, your ruling planet, expands wisdom, optimism, and opportunities for growth. "
+                 "Higher education, philosophy, and spiritual pursuits are all favoured under this influence. "
+                 "Fortune favours the bold — your natural optimism inspires everyone around you."),
+                ("Saturn's grounding influence helps focus your expansive Dhanu energy on completing rather than initiating. "
+                 "A project near completion needs your full attention today — finishing carries more karmic momentum than beginning. "
+                 "Unexpected wisdom arrives from an elder, mentor, or authoritative source."),
+                ("The Moon crosses your 12th house, making today powerful for retreat, meditation, and inner listening. "
+                 "Dreams and quiet intuitions carry genuine navigational guidance — write them down before they fade. "
+                 "Charitable actions and service to others today attract blessings that return in unexpected, magnified forms."),
+            ],
+            "Makara": [
+                ("Saturn rewards your discipline and sustained effort with lasting achievements. "
+                 "Career advancement and professional recognition are highlighted during this period. "
+                 "Long-term investments and structured plans yield excellent returns — patience is your virtue."),
+                ("Venus graces your social and networking sector, softening Saturn's typical seriousness with genuine warmth and collaborative ease. "
+                 "A professional introduction through social channels leads to a genuinely beneficial association. "
+                 "Financial gain through collaborative or group endeavours is specifically indicated today."),
+                ("Jupiter's benevolent influence activates your 12th house of inner wisdom and spiritual preparation. "
+                 "A quiet period that has felt like delay is actually deep, invisible preparation for a significant breakthrough. "
+                 "Trust the process; the structure you are building beneath the surface will support remarkable achievements."),
+            ],
+            "Kumbha": [
+                ("Saturn and Rahu combine to bring innovation, humanitarian impulses, and unconventional thinking. "
+                 "Technology, social causes, and group activities receive strong cosmic support. "
+                 "Your visionary ideas can create meaningful, lasting change — embrace the unexpected."),
+                ("The Sun blazes through your career and public visibility sector, making today pivotal for professional presence and achievement. "
+                 "Step into any spotlight offered with full confidence — your innovations deserve a wider audience now. "
+                 "A proposal presented to authority figures today receives unexpectedly enthusiastic reception."),
+                ("Venus moves gracefully through your relationship house, restoring warmth and reciprocity to connections that have felt one-sided. "
+                 "A friendship deserving more investment responds beautifully when you give it genuine attention today. "
+                 "Creative collaborations with people you genuinely admire produce something far better than either could alone."),
+            ],
+            "Meena": [
+                ("Jupiter deepens your spiritual sensitivity, compassion, and creative imagination. "
+                 "Artistic, healing, and spiritual vocations flourish under this mystical influence. "
+                 "Acts of selfless service attract powerful blessings — your intuition is your greatest guide."),
+                ("Saturn activates your 12th house of liberation and surrender, making today powerful for releasing old patterns, outdated beliefs, and accumulated emotional weight. "
+                 "Any form of inner work — meditation, therapy, journaling, or sacred practice — produces breakthrough clarity. "
+                 "What you release today creates exactly the space needed for your next level of growth."),
+                ("Mars energises your career sector with unusual directness, giving the typically receptive Meena native a burst of professional initiative. "
+                 "The vision you carry meets worldly action today — take the concrete step toward a goal you usually approach only in imagination. "
+                 "A professional achievement feels almost fated; it is the result of invisible work finally made visible."),
+            ],
         }
 
         _WEEKLY: Dict[str, str] = {
@@ -633,17 +732,45 @@ class AstrologyRepository:
             ),
         }
 
-        # ── Assemble response ─────────────────────────────────────────────────
+        # ── Assemble response (date-aware) ────────────────────────────────────
         b = _BASE.get(sign, _BASE["Mesha"])
+        today = datetime.date.today()
+
+        def _date_idx(period_key: str, num_variants: int) -> int:
+            """Deterministic, stable index based on sign + date period."""
+            h = int(hashlib.md5(f"{sign}{period_key}".encode()).hexdigest(), 16)
+            return h % num_variants
+
+        # Vary scores slightly day-by-day (±0.5) for realism
+        def _score_jitter(metric: str) -> float:
+            h = int(hashlib.md5(f"{sign}{metric}{today.isoformat()}".encode()).hexdigest(), 16)
+            return (h % 11 - 5) * 0.1  # -0.5 to +0.5
+
+        career_score  = round(min(10.0, max(4.0, b["career_score"]  + _score_jitter("career"))),  1)
+        love_score    = round(min(10.0, max(4.0, b["love_score"]    + _score_jitter("love"))),    1)
+        health_score  = round(min(10.0, max(4.0, b["health_score"]  + _score_jitter("health"))),  1)
+        finance_score = round(min(10.0, max(4.0, b["finance_score"] + _score_jitter("finance"))), 1)
 
         if horo_type == "weekly":
-            prediction = _WEEKLY.get(sign, _WEEKLY["Mesha"])
+            # Prepend the actual week date range to the weekly prediction
+            week_start = today - datetime.timedelta(days=today.weekday())
+            week_end   = week_start + datetime.timedelta(days=6)
+            week_label = f"Week of {week_start.day} {week_start.strftime('%b')} – {week_end.day} {week_end.strftime('%b %Y')}"
+            raw_weekly = _WEEKLY.get(sign, _WEEKLY["Mesha"])
+            prediction = f"{week_label}\n\n{raw_weekly}"
         elif horo_type == "monthly":
-            prediction = _MONTHLY.get(sign, _MONTHLY["Mesha"])
+            month_label = today.strftime("%B %Y")
+            raw_monthly = _MONTHLY.get(sign, _MONTHLY["Mesha"])
+            prediction  = f"{month_label}\n\n{raw_monthly}"
         elif horo_type == "yearly":
-            prediction = _YEARLY.get(sign, _YEARLY["Mesha"])
+            raw_yearly = _YEARLY.get(sign, _YEARLY["Mesha"])
+            prediction  = raw_yearly  # Already contains the year in the text
         else:
-            prediction = _DAILY.get(sign, _DAILY["Mesha"])
+            # Daily: rotate among 3 variants based on today's date
+            day_key  = today.isoformat()
+            variants = _DAILY.get(sign, _DAILY["Mesha"])
+            idx      = _date_idx(day_key, len(variants))
+            prediction = variants[idx]
 
         return {
             "data": {
@@ -651,13 +778,12 @@ class AstrologyRepository:
                 "lucky_number":   b["lucky_number"],
                 "lucky_color":    b["lucky_color"],
                 "lucky_gemstone": b["lucky_gemstone"],
-                "career_score":   b["career_score"],
-                "love_score":     b["love_score"],
-                "health_score":   b["health_score"],
-                "finance_score":  b["finance_score"],
+                "career_score":   career_score,
+                "love_score":     love_score,
+                "health_score":   health_score,
+                "finance_score":  finance_score,
                 "overall_score":  round(
-                    (b["career_score"] + b["love_score"] +
-                     b["health_score"] + b["finance_score"]) / 4, 1
+                    (career_score + love_score + health_score + finance_score) / 4, 1
                 ),
                 "do_today":    b["do_today"],
                 "avoid_today": b["avoid_today"],

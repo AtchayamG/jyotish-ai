@@ -266,11 +266,14 @@ class AstrologyService:
 
     async def get_horoscope(self, sign: ZodiacSign, htype: HoroscopeType, language: str) -> HoroscopeResponse:
         import datetime
+        today = datetime.date.today()
+        week_start = today - datetime.timedelta(days=today.weekday())
+        week_end   = week_start + datetime.timedelta(days=6)
         date_ranges = {
-            "daily":   "Today",
-            "weekly":  "This Week",
-            "monthly": "This Month",
-            "yearly":  str(datetime.date.today().year),
+            "daily":   f"{today.day} {today.strftime('%B %Y')}",
+            "weekly":  f"{week_start.day} {week_start.strftime('%b')} – {week_end.day} {week_end.strftime('%b %Y')}",
+            "monthly": today.strftime("%B %Y"),
+            "yearly":  str(today.year),
         }
 
         # 1. Try Prokerala
@@ -339,10 +342,18 @@ class AstrologyService:
             return {}
 
         import json, datetime
-        today = datetime.date.today().strftime("%d %B %Y")
-        period_map = {"daily": f"day of {today}", "weekly": "current week",
-                      "monthly": "current month", "yearly": "current year"}
-        period = period_map.get(htype, f"day of {today}")
+        today       = datetime.date.today()
+        week_start  = today - datetime.timedelta(days=today.weekday())
+        week_end    = week_start + datetime.timedelta(days=6)
+        iso_week    = today.isocalendar()[1]
+        today_str   = f"{today.strftime('%A')}, {today.day} {today.strftime('%B %Y')}"
+        period_map  = {
+            "daily":   f"today, {today_str}",
+            "weekly":  f"the week of {week_start.day}–{week_end.day} {week_end.strftime('%B %Y')} (ISO Week {iso_week})",
+            "monthly": f"{today.strftime('%B %Y')}",
+            "yearly":  str(today.year),
+        }
+        period = period_map.get(htype, f"today, {today_str}")
 
         prompt = (
             f"Generate a Vedic astrology horoscope for {sign} rasi for the {period}. "
