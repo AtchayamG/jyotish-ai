@@ -2,6 +2,7 @@
 import "../../domain/entities/user_entity.dart";
 import "../../domain/repositories/auth_repository.dart";
 import "../datasources/auth_remote_datasource.dart";
+import "../models/auth_model.dart";
 
 UserEntity _authModelToEntity(AuthModel m) => UserEntity(
       id: m.user.id,
