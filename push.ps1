@@ -43,6 +43,22 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
+fix: admin tier not recognized — reconcile user_tier from is_admin flag
+
+Root cause: admin accounts created before user_tier system have is_admin=true
+in Firestore but user_tier="free" (field didn't exist yet). Both layers fixed:
+
+Backend (user_schema.py):
+  - Added @model_validator on UserPublic.reconcile_tier()
+  - is_admin=True → user_tier overridden to UserTier.admin on every response
+  - is_premium=True + free tier → promoted to UserTier.premium
+  - No DB migration needed — runs at serialization time on every API call
+
+Flutter (auth_bloc.dart _onCheck):
+  - isAdmin flag from SecureStorage now overrides parsed tier immediately
+  - Admin users see correct tier on app open without re-login required
+  - tier = isAdmin ? UserTier.admin : (parsed from storage)
+
 fix: truly responsive shell — width-based breakpoint replaces kIsWeb platform check
 
 Root cause: kIsWeb is true on mobile browsers, so everyone on a narrow screen

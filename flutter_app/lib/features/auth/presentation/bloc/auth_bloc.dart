@@ -136,8 +136,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         final name      = await storage.getUserName()    ?? "";
         final isAdmin   = await storage.getIsAdmin();
         final tierStr   = await storage.getUserTier();
-        final tier      = UserTier.values.firstWhere(
-          (t) => t.name == tierStr, orElse: () => UserTier.free);
+        // Derive tier: if stored as admin flag but tier wasn't saved correctly
+        // (legacy accounts created before the tier system), trust isAdmin flag.
+        final tier = isAdmin
+            ? UserTier.admin
+            : UserTier.values.firstWhere(
+                (t) => t.name == tierStr, orElse: () => UserTier.free);
         final dob       = await storage.getBirthDob();
         final tob       = await storage.getBirthTob();
         final place     = await storage.getBirthPlace();

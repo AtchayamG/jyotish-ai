@@ -1,7 +1,7 @@
 """schemas/user_schema.py"""
 from enum import Enum
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class UserTier(str, Enum):
@@ -93,6 +93,21 @@ class UserPublic(UserBase):
     birth_longitude: Optional[float] = None
     birth_timezone: Optional[float] = None
     moon_sign: Optional[str] = None
+
+    @model_validator(mode="after")
+    def reconcile_tier(self) -> "UserPublic":
+        """
+        Derive the correct tier from is_admin / is_premium flags.
+        Handles legacy accounts created before the user_tier field existed:
+          - is_admin → admin tier (unlimited profiles, all features)
+          - is_premium + free tier → promote to premium
+        This runs on every response, so no DB migration required.
+        """
+        if self.is_admin:
+            self.user_tier = UserTier.admin
+        elif self.is_premium and self.user_tier == UserTier.free:
+            self.user_tier = UserTier.premium
+        return self
 
 
 class TokenResponse(BaseModel):
