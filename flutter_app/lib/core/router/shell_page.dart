@@ -5,6 +5,10 @@ import "package:go_router/go_router.dart";
 import "../theme/app_theme.dart";
 import "app_router.dart";
 
+/// Breakpoint below which we always use the mobile bottom-nav layout,
+/// even if the platform is web (e.g. mobile browser).
+const double _kSidebarBreakpoint = 720.0;
+
 class ShellPage extends StatelessWidget {
   final Widget child;
   final String location;
@@ -12,7 +16,7 @@ class ShellPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = <({String route, IconData icon, IconData activeIcon, String label})>[
+    final tabs = <_Tab>[
       (route: AppRoutes.home,        icon: Icons.home_outlined,          activeIcon: Icons.home,          label: "Home"),
       (route: AppRoutes.kundli,      icon: Icons.blur_circular_outlined, activeIcon: Icons.blur_circular, label: "Kundli"),
       (route: AppRoutes.horoscope,   icon: Icons.auto_awesome_outlined,  activeIcon: Icons.auto_awesome,  label: "Horoscope"),
@@ -25,52 +29,93 @@ class ShellPage extends StatelessWidget {
       if (location.startsWith(tabs[i].route)) { idx = i; break; }
     }
 
-    // ── Web: proper sidebar + content layout ────────────────────────────────
-    if (kIsWeb) {
-      return _WebShell(tabs: tabs, currentIdx: idx, child: child);
-    }
+    // Use LayoutBuilder so layout responds to actual available width —
+    // this correctly handles mobile browsers, desktop browsers, and native apps.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = kIsWeb && constraints.maxWidth >= _kSidebarBreakpoint;
+        return isWide
+            ? _DesktopShell(tabs: tabs, currentIdx: idx, child: child)
+            : _MobileShell(tabs: tabs, currentIdx: idx, child: child);
+      },
+    );
+  }
+}
 
-    // ── Mobile: bottom navigation bar ───────────────────────────────────────
+// ── Type alias ─────────────────────────────────────────────────────────────────
+
+typedef _Tab = ({
+  String route,
+  IconData icon,
+  IconData activeIcon,
+  String label,
+});
+
+// ── Mobile shell (native app + mobile browsers) ────────────────────────────────
+
+class _MobileShell extends StatelessWidget {
+  final List<_Tab> tabs;
+  final int currentIdx;
+  final Widget child;
+  const _MobileShell({required this.tabs, required this.currentIdx, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.ink,
       body: child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: AppColors.ink2,
-          border: Border(top: BorderSide(color: AppColors.borderSubtle))),
-        child: SafeArea(child: SizedBox(height: 60, child: Row(
-          children: List.generate(tabs.length, (i) {
-            final t = tabs[i]; final active = idx == i;
-            return Expanded(child: InkWell(
-              onTap: () => context.go(t.route),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(active ? t.activeIcon : t.icon,
-                  color: active ? AppColors.gold : AppColors.textHint, size: 20),
-                const SizedBox(height: 2),
-                Text(t.label, style: TextStyle(fontSize: 9,
-                  color: active ? AppColors.gold : AppColors.textHint,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
-              ]),
-            ));
-          }),
-        ))),
+          border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 60,
+            child: Row(
+              children: List.generate(tabs.length, (i) {
+                final t = tabs[i];
+                final active = currentIdx == i;
+                return Expanded(
+                  child: InkWell(
+                    onTap: () => context.go(t.route),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          active ? t.activeIcon : t.icon,
+                          color: active ? AppColors.gold : AppColors.textHint,
+                          size: 20,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          t.label,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: active ? AppColors.gold : AppColors.textHint,
+                            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-// ── Web shell ──────────────────────────────────────────────────────────────────
+// ── Desktop shell (wide browser windows) ──────────────────────────────────────
 
-class _WebShell extends StatelessWidget {
-  final List<({String route, IconData icon, IconData activeIcon, String label})> tabs;
+class _DesktopShell extends StatelessWidget {
+  final List<_Tab> tabs;
   final int currentIdx;
   final Widget child;
-
-  const _WebShell({
-    required this.tabs,
-    required this.currentIdx,
-    required this.child,
-  });
+  const _DesktopShell({required this.tabs, required this.currentIdx, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -78,9 +123,7 @@ class _WebShell extends StatelessWidget {
       backgroundColor: AppColors.inkDeep,
       body: Row(
         children: [
-          // Left sidebar navigation
-          _WebSidebar(tabs: tabs, currentIdx: currentIdx),
-          // Main content — centered with max width for readability
+          _DesktopSidebar(tabs: tabs, currentIdx: currentIdx),
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -95,13 +138,12 @@ class _WebShell extends StatelessWidget {
   }
 }
 
-// ── Web sidebar ────────────────────────────────────────────────────────────────
+// ── Desktop sidebar ────────────────────────────────────────────────────────────
 
-class _WebSidebar extends StatelessWidget {
-  final List<({String route, IconData icon, IconData activeIcon, String label})> tabs;
+class _DesktopSidebar extends StatelessWidget {
+  final List<_Tab> tabs;
   final int currentIdx;
-
-  const _WebSidebar({required this.tabs, required this.currentIdx});
+  const _DesktopSidebar({required this.tabs, required this.currentIdx});
 
   @override
   Widget build(BuildContext context) {
@@ -114,41 +156,49 @@ class _WebSidebar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Brand / logo ─────────────────────────────────────────────────
+          // Brand
           const SafeArea(
             bottom: false,
             child: Padding(
               padding: EdgeInsets.fromLTRB(22, 28, 22, 20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Text('✦',
-                    style: TextStyle(fontSize: 22, color: AppColors.gold)),
-                  SizedBox(width: 10),
-                  Text('JYOTISH AI',
-                    style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary, letterSpacing: 1.6)),
-                ]),
-                SizedBox(height: 4),
-                Padding(
-                  padding: EdgeInsets.only(left: 32),
-                  child: Text('Vedic Astrology',
-                    style: TextStyle(fontSize: 10, color: AppColors.textHint,
-                      letterSpacing: 0.5)),
-                ),
-              ]),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Text('✦',
+                        style: TextStyle(fontSize: 22, color: AppColors.gold)),
+                    SizedBox(width: 10),
+                    Text('JYOTISH AI',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          letterSpacing: 1.6,
+                        )),
+                  ]),
+                  SizedBox(height: 4),
+                  Padding(
+                    padding: EdgeInsets.only(left: 32),
+                    child: Text('Vedic Astrology',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textHint,
+                          letterSpacing: 0.5,
+                        )),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // Thin divider
           const Divider(color: AppColors.borderSubtle, height: 1),
           const SizedBox(height: 10),
 
-          // ── Navigation items ─────────────────────────────────────────────
+          // Nav items
           ...List.generate(tabs.length, (i) {
             final t = tabs[i];
             final active = currentIdx == i;
-            return _NavItem(
+            return _SidebarNavItem(
               icon: active ? t.activeIcon : t.icon,
               label: t.label,
               active: active,
@@ -158,20 +208,23 @@ class _WebSidebar extends StatelessWidget {
 
           const Spacer(),
 
-          // ── Footer ───────────────────────────────────────────────────────
           const Divider(color: AppColors.borderSubtle, height: 1),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
             child: Row(children: [
               Container(
-                width: 7, height: 7,
+                width: 7,
+                height: 7,
                 decoration: const BoxDecoration(
-                  color: AppColors.teal, shape: BoxShape.circle),
+                    color: AppColors.teal, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               const Text('Live · IST',
-                style: TextStyle(fontSize: 11, color: AppColors.textHint,
-                  letterSpacing: 0.3)),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textHint,
+                    letterSpacing: 0.3,
+                  )),
             ]),
           ),
         ],
@@ -180,15 +233,13 @@ class _WebSidebar extends StatelessWidget {
   }
 }
 
-// ── Sidebar nav item ───────────────────────────────────────────────────────────
-
-class _NavItem extends StatelessWidget {
+class _SidebarNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
   final VoidCallback onTap;
 
-  const _NavItem({
+  const _SidebarNavItem({
     required this.icon,
     required this.label,
     required this.active,
@@ -214,22 +265,25 @@ class _NavItem extends StatelessWidget {
           ),
           child: Row(children: [
             Icon(icon,
-              size: 18,
-              color: active ? AppColors.gold : AppColors.textSecondary),
+                size: 18,
+                color: active ? AppColors.gold : AppColors.textSecondary),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(label,
+              child: Text(
+                label,
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                   color: active ? AppColors.gold : AppColors.textSecondary,
-                )),
+                ),
+              ),
             ),
             if (active)
               Container(
-                width: 5, height: 5,
+                width: 5,
+                height: 5,
                 decoration: const BoxDecoration(
-                  color: AppColors.gold, shape: BoxShape.circle),
+                    color: AppColors.gold, shape: BoxShape.circle),
               ),
           ]),
         ),

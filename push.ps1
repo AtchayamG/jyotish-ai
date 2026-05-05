@@ -43,6 +43,20 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
+fix: truly responsive shell — width-based breakpoint replaces kIsWeb platform check
+
+Root cause: kIsWeb is true on mobile browsers, so everyone on a narrow screen
+got the sidebar layout → unreadable. Fix: LayoutBuilder + 720px breakpoint.
+
+shell_page.dart rewrite:
+  - LayoutBuilder checks constraints.maxWidth, not kIsWeb alone
+  - < 720px (mobile app + mobile browser): _MobileShell with bottom nav bar
+  - >= 720px AND web: _DesktopShell with sidebar + constrained content area
+  - Mobile native app always uses _MobileShell (kIsWeb guard preserved)
+  - Sidebar: 220px, brand + animated nav items + live indicator footer
+  - Content: Expanded → Center → ConstrainedBox(maxWidth: 860)
+  - AnimatedContainer on active sidebar item for smooth 180ms transitions
+
 feat: web responsive layout + AI chat overhaul (intent detection, history, auth)
 
 Build fixes (from previous commit):
