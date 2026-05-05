@@ -318,6 +318,36 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             ListTile(
+              leading: const Icon(Icons.settings_outlined,
+                  color: AppColors.textSecondary),
+              title: Text('Settings', style: AppTextStyles.bodyMd),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppRoutes.settings);
+              },
+            ),
+            const Divider(color: AppColors.borderSubtle, height: 1),
+            ListTile(
+              leading: const Icon(Icons.people_alt_outlined,
+                  color: AppColors.violet),
+              title: Text('Switch Profile', style: AppTextStyles.bodyMd),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppRoutes.switchProfile);
+              },
+            ),
+            const Divider(color: AppColors.borderSubtle, height: 1),
+            ListTile(
+              leading: const Icon(Icons.star_outline,
+                  color: AppColors.gold),
+              title: Text('Upgrade Plan', style: AppTextStyles.bodyMd),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppRoutes.pricing);
+              },
+            ),
+            const Divider(color: AppColors.borderSubtle, height: 1),
+            ListTile(
               leading: const Icon(Icons.logout_outlined,
                   color: AppColors.rose),
               title: Text('Sign Out', style: AppTextStyles.bodyMd),

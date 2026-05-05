@@ -3,6 +3,23 @@ import "../../domain/entities/user_entity.dart";
 import "../../domain/repositories/auth_repository.dart";
 import "../datasources/auth_remote_datasource.dart";
 
+UserEntity _authModelToEntity(AuthModel m) => UserEntity(
+      id: m.user.id,
+      email: m.user.email,
+      fullName: m.user.fullName,
+      phone: m.user.phone,
+      isPremium: m.user.isPremium,
+      isAdmin: m.user.isAdmin,
+      userTier: m.user.userTier,
+      dateOfBirth: m.user.dateOfBirth,
+      timeOfBirth: m.user.timeOfBirth,
+      placeOfBirth: m.user.placeOfBirth,
+      birthLatitude: m.user.birthLatitude,
+      birthLongitude: m.user.birthLongitude,
+      birthTimezone: m.user.birthTimezone,
+      moonSign: m.user.moonSign,
+    );
+
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _ds;
   AuthRepositoryImpl(this._ds);
@@ -13,21 +30,7 @@ class AuthRepositoryImpl implements AuthRepository {
     return (
       accessToken: m.accessToken,
       refreshToken: m.refreshToken,
-      user: UserEntity(
-        id: m.user.id,
-        email: m.user.email,
-        fullName: m.user.fullName,
-        phone: m.user.phone,
-        isPremium: m.user.isPremium,
-        isAdmin: m.user.isAdmin,
-        dateOfBirth: m.user.dateOfBirth,
-        timeOfBirth: m.user.timeOfBirth,
-        placeOfBirth: m.user.placeOfBirth,
-        birthLatitude: m.user.birthLatitude,
-        birthLongitude: m.user.birthLongitude,
-        birthTimezone: m.user.birthTimezone,
-        moonSign: m.user.moonSign,
-      ),
+      user: _authModelToEntity(m),
     );
   }
 
@@ -57,21 +60,7 @@ class AuthRepositoryImpl implements AuthRepository {
     return (
       accessToken: m.accessToken,
       refreshToken: m.refreshToken,
-      user: UserEntity(
-        id: m.user.id,
-        email: m.user.email,
-        fullName: m.user.fullName,
-        phone: m.user.phone,
-        isPremium: m.user.isPremium,
-        isAdmin: m.user.isAdmin,
-        dateOfBirth: m.user.dateOfBirth,
-        timeOfBirth: m.user.timeOfBirth,
-        placeOfBirth: m.user.placeOfBirth,
-        birthLatitude: m.user.birthLatitude,
-        birthLongitude: m.user.birthLongitude,
-        birthTimezone: m.user.birthTimezone,
-        moonSign: m.user.moonSign,
-      ),
+      user: _authModelToEntity(m),
     );
   }
 }

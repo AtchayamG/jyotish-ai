@@ -11,6 +11,10 @@ import "../../features/kundli/presentation/pages/kundli_page.dart";
 import "../../features/horoscope/presentation/pages/horoscope_page.dart";
 import "../../features/matchmaking/presentation/pages/matchmaking_page.dart";
 import "../../features/ai_chat/presentation/pages/ai_chat_page.dart";
+import "../../features/settings/presentation/pages/settings_page.dart";
+import "../../features/settings/presentation/pages/pricing_page.dart";
+import "../../features/settings/presentation/pages/add_profile_page.dart";
+import "../../features/settings/presentation/pages/switch_profile_page.dart";
 import "shell_page.dart";
 
 class AppRoutes {
@@ -23,6 +27,10 @@ class AppRoutes {
   static const horoscope       = "/horoscope";
   static const matchmaking     = "/matchmaking";
   static const aiChat          = "/ai-chat";
+  static const settings        = "/settings";
+  static const pricing         = "/pricing";
+  static const addProfile      = "/settings/add-profile";
+  static const switchProfile   = "/settings/profiles";
   static const admin           = "/admin";
 }
 
@@ -41,32 +49,21 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
         final onSplash     = going == AppRoutes.splash;
         final onComplete   = going == AppRoutes.profileComplete;
 
-        // ── Splash: never redirect away from it. ────────────────────────────
-        // SplashPage owns its own lifecycle (3-second minimum + auth gate).
-        // Only exception: while still checking auth, keep non-public routes
-        // bounced to splash so they can't show without credentials.
         if (onSplash) return null;
 
-        // ── Still determining auth state ─────────────────────────────────────
-        // Stay on login/register so the loading indicator works in-place.
-        // Any other protected route → hold on splash until auth is known.
         if (isChecking) {
           return publicRoutes.contains(going) ? null : AppRoutes.splash;
         }
 
-        // ── Not logged in ────────────────────────────────────────────────────
         if (isUnauth && !publicRoutes.contains(going)) return AppRoutes.login;
 
-        // ── Logged in ────────────────────────────────────────────────────────
         if (isAuth) {
           final user = (s as AuthAuthenticated).user;
 
-          // Users without birth details → profile completion
           if (!user.hasBirthDetails && !onComplete) {
             return AppRoutes.profileComplete;
           }
 
-          // Bounce authenticated users off public pages
           if (publicRoutes.contains(going)) return AppRoutes.home;
         }
 
@@ -80,6 +77,24 @@ GoRouter createRouter(AuthBloc authBloc) => GoRouter(
           path: AppRoutes.profileComplete,
           builder: (_, __) => const ProfileCompletePage(),
         ),
+        // ── Settings flow (outside shell — full screen) ────────────────────
+        GoRoute(
+          path: AppRoutes.settings,
+          builder: (_, __) => const SettingsPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.pricing,
+          builder: (_, __) => const PricingPage(),
+        ),
+        GoRoute(
+          path: AppRoutes.addProfile,
+          builder: (_, __) => const AddProfilePage(),
+        ),
+        GoRoute(
+          path: AppRoutes.switchProfile,
+          builder: (_, __) => const SwitchProfilePage(),
+        ),
+        // ── Shell (bottom nav) ─────────────────────────────────────────────
         ShellRoute(
           builder: (ctx, state, child) =>
               ShellPage(location: state.matchedLocation, child: child),

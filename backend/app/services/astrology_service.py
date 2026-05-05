@@ -3,8 +3,9 @@ services/astrology_service.py
 Business logic for Kundli, Horoscope, Matchmaking, Muhurtham, AI Chat.
 Transforms raw API data into clean response schemas.
 """
+import datetime
 import logging
-from typing import List
+from typing import List, Tuple
 
 from app.core.http_client import http_client
 from app.repositories.astrology_repository import AstrologyRepository
@@ -91,6 +92,87 @@ def _planet_status(planet_name: str, rasi: str) -> str:
     return "Neutral"
 
 
+# ── Vimshottari Dasha Tables ──────────────────────────────────────────────────
+
+_DASHA_SEQUENCE = [
+    ("Ketu",    7),
+    ("Venus",   20),
+    ("Sun",     6),
+    ("Moon",    10),
+    ("Mars",    7),
+    ("Rahu",    18),
+    ("Jupiter", 16),
+    ("Saturn",  19),
+    ("Mercury", 17),
+]
+
+_NAK_TO_DASHA = [
+    "Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury",  # 0-8
+    "Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury",  # 9-17
+    "Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury",  # 18-26
+]
+
+_DASHA_YEARS = dict(_DASHA_SEQUENCE)
+
+
+def _compute_dasha(
+    moon_longitude: float,
+    birth_year: int, birth_month: int, birth_day: int,
+) -> str:
+    """
+    Compute Vimshottari mahadasha + antardasha for a given birth date and moon longitude.
+    Returns a human-readable string like 'Rahu Mahadasha / Venus Antardasha (until Sep 2026)'.
+    """
+    nak_span = 360.0 / 27.0
+    nak_idx = int(moon_longitude / nak_span) % 27
+    frac_in_nak = (moon_longitude % nak_span) / nak_span
+
+    start_planet = _NAK_TO_DASHA[nak_idx]
+    start_years  = _DASHA_YEARS[start_planet]
+    elapsed_years  = frac_in_nak * start_years
+    balance_years  = start_years - elapsed_years
+
+    seq_planets = [p for p, _ in _DASHA_SEQUENCE]
+    start_idx   = seq_planets.index(start_planet)
+
+    birth_dt = datetime.date(birth_year, birth_month, birth_day)
+    today    = datetime.date.today()
+
+    def add_years(d: datetime.date, y: float) -> datetime.date:
+        return d + datetime.timedelta(days=int(y * 365.25))
+
+    cursor = birth_dt
+    for i in range(9):
+        idx = (start_idx + i) % 9
+        planet, years = _DASHA_SEQUENCE[idx]
+        period_years = balance_years if i == 0 else years
+        end = add_years(cursor, period_years)
+
+        if cursor <= today < end or (i == 8 and today >= cursor):
+            maha_end = end
+            maha_start = cursor
+            total_maha_days = (maha_end - maha_start).days or 1
+            antar_cursor = maha_start
+
+            for j in range(9):
+                antar_idx = (seq_planets.index(planet) + j) % 9
+                antar_planet, antar_years = _DASHA_SEQUENCE[antar_idx]
+                antar_days = int(total_maha_days * antar_years / 120.0)
+                antar_end = antar_cursor + datetime.timedelta(days=antar_days)
+
+                if antar_cursor <= today < antar_end or j == 8:
+                    return (
+                        f"{planet} Mahadasha / "
+                        f"{antar_planet} Antardasha "
+                        f"(until {antar_end.strftime('%b %Y')})"
+                    )
+                antar_cursor = antar_end
+
+        cursor = end
+
+    return "Rahu Mahadasha / Venus Antardasha"
+
+
 def _degree_to_str(longitude: float) -> str:
     deg = int(longitude % 30)
     minutes = int((longitude % 1) * 60)
@@ -120,8 +202,25 @@ class AstrologyService:
         summary = self._parse_summary(kundli_raw, chart_raw)
         dashas = self._mock_dashas(kundli_raw)
 
-        current = kundli_raw.get("data", {})
-        current_dasha = f"{current.get('current_mahadasha','?')}–{current.get('current_antardasha','?')}"
+        # Compute Vimshottari dasha from moon longitude (Swiss Ephemeris data)
+        moon_lon = None
+        planet_list = (
+            chart_raw.get("data", {}).get("planet_position")
+            or chart_raw.get("data", {}).get("planets", [])
+        )
+        for p in planet_list:
+            if p.get("name", "").lower() == "moon":
+                moon_lon = p.get("longitude", None)
+                break
+
+        if moon_lon is not None:
+            current_dasha = _compute_dasha(moon_lon, birth.year, birth.month, birth.day)
+        else:
+            # Legacy fallback from Prokerala data
+            current = kundli_raw.get("data", {})
+            maha  = current.get("current_mahadasha", "")
+            antar = current.get("current_antardasha", "")
+            current_dasha = f"{maha} Mahadasha / {antar} Antardasha" if maha else "Computing..."
 
         return KundliResponse(
             birth_details=birth,

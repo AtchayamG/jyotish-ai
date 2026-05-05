@@ -24,6 +24,7 @@ class SecureStorage implements TokenStorage {
   static const _kEmail     = "user_email";
   static const _kName      = "user_name";
   static const _kIsAdmin   = "is_admin";
+  static const _kUserTier  = "user_tier";
   // Birth details
   static const _kDob       = "birth_dob";
   static const _kTob       = "birth_tob";
@@ -65,12 +66,14 @@ class SecureStorage implements TokenStorage {
     required String email,
     required String name,
     bool isAdmin = false,
+    String userTier = "free",
   }) async {
     try {
       await _s.write(key: _kUserId, value: id);
       await _s.write(key: _kEmail, value: email);
       await _s.write(key: _kName, value: name);
       await _s.write(key: _kIsAdmin, value: isAdmin.toString());
+      await _s.write(key: _kUserTier, value: userTier);
     } catch (_) {}
   }
 
@@ -91,6 +94,12 @@ class SecureStorage implements TokenStorage {
       final v = await _s.read(key: _kIsAdmin);
       return v == 'true';
     } catch (_) { return false; }
+  }
+
+  Future<String> getUserTier() async {
+    try {
+      return await _s.read(key: _kUserTier) ?? "free";
+    } catch (_) { return "free"; }
   }
 
   Future<bool> isLoggedIn() async => (await getAccessToken()) != null;

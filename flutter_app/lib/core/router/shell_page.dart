@@ -1,6 +1,6 @@
 // lib/core/router/shell_page.dart
+import "package:flutter/foundation.dart" show kIsWeb;
 import "package:flutter/material.dart";
-import "package:flutter_bloc/flutter_bloc.dart";
 import "package:go_router/go_router.dart";
 import "../theme/app_theme.dart";
 import "app_router.dart";
@@ -25,7 +25,8 @@ class ShellPage extends StatelessWidget {
       if (location.startsWith(tabs[i].route)) { idx = i; break; }
     }
 
-    return Scaffold(
+    final scaffold = Scaffold(
+      backgroundColor: AppColors.ink,
       body: child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -49,5 +50,20 @@ class ShellPage extends StatelessWidget {
         ))),
       ),
     );
+
+    // On web: center the phone shell with a dark background around it
+    if (kIsWeb) {
+      return Scaffold(
+        backgroundColor: AppColors.inkDeep,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 430),
+            child: scaffold,
+          ),
+        ),
+      );
+    }
+
+    return scaffold;
   }
 }

@@ -1,8 +1,32 @@
 // lib/core/widgets/app_widgets.dart
 // Shared reusable UI components used across features.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+
+// ── Web-safe page content limiter ─────────────────────────────────────────────
+// On mobile: transparent pass-through.
+// On web:  constrains content to 430px max-width, centered, with h-padding.
+class PageLayout extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+  const PageLayout({super.key, required this.child, this.maxWidth = 430});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kIsWeb) return child;
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
+}
+
+// ── Consistent horizontal padding ────────────────────────────────────────────
+const double kPageHPad = 16.0;
 
 // ── Gold Chip ─────────────────────────────────────────────────────────────────
 class AppChip extends StatelessWidget {

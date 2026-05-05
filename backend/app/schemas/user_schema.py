@@ -1,6 +1,38 @@
 """schemas/user_schema.py"""
-from typing import Optional
+from enum import Enum
+from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field
+
+
+class UserTier(str, Enum):
+    free    = "free"
+    premium = "premium"
+    max     = "max"
+    admin   = "admin"
+
+
+# ── Profile schema (additional family/friend profiles) ────────────────────────
+
+class ProfileBase(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=100)
+    relationship: str = Field(..., description="e.g. spouse, child, parent, friend")
+    gender: Optional[str] = None          # male / female / other
+    date_of_birth: Optional[str] = None   # "YYYY-MM-DD"
+    time_of_birth: Optional[str] = None   # "HH:MM"
+    place_of_birth: Optional[str] = None
+    birth_latitude: Optional[float] = None
+    birth_longitude: Optional[float] = None
+    birth_timezone: Optional[float] = None
+
+
+class ProfileCreate(ProfileBase):
+    pass
+
+
+class ProfilePublic(ProfileBase):
+    id: str
+    owner_uid: str
+    created_at: str = ""
 
 
 class UserBase(BaseModel):
@@ -30,6 +62,7 @@ class UserInDB(UserBase):
     is_active: bool = True
     is_premium: bool = False
     is_admin: bool = False
+    user_tier: UserTier = UserTier.free
     created_at: str = ""
     updated_at: str = ""
     hashed_password: str = ""
@@ -50,6 +83,7 @@ class UserPublic(UserBase):
     id: str
     is_premium: bool
     is_admin: bool = False
+    user_tier: UserTier = UserTier.free
     created_at: str
     # Birth details returned to client
     date_of_birth: Optional[str] = None
@@ -85,3 +119,4 @@ class UpdateProfileRequest(BaseModel):
     birth_latitude: Optional[float] = None
     birth_longitude: Optional[float] = None
     birth_timezone: Optional[float] = None
+    user_tier: Optional[UserTier] = None

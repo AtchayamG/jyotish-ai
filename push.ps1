@@ -43,31 +43,61 @@ git add -A
 
 # Write commit message to a temp file to avoid Unicode/shell parsing issues
 $msg = @"
-feat: AI kundli chat, date-aware horoscopes, home page redesign
+feat: dasha fix, user tiers, settings page, profiles, pricing, web layout
 
-AI Chatbot - personalized with real birth chart:
-  - Computes full Vedic chart via Swiss Ephemeris on every chat request
-  - Injects lagna, rasi, nakshatra, all 9 planet positions into system prompt
-  - Implements Vimshottari dasha calculator: correct mahadasha + antardasha with dates
-  - Rule-based fallback now answers lagna/rasi/nakshatra/dasha from actual chart
-  - CRITICAL RULES force AI to never give generic responses; always reference user chart
-  - max_tokens raised to 800 for richer chart-based answers
+Dasha fix - real Vimshottari computation in Kundli summary:
+  - Added _DASHA_SEQUENCE/_NAK_TO_DASHA/_DASHA_YEARS tables to astrology_service.py
+  - Added _compute_dasha() - extracts moon longitude, computes correct mahadasha+antardasha
+  - get_kundli() now shows e.g. 'Rahu Mahadasha / Venus Antardasha (until Sep 2026)'
+  - Fallback to 'Computing...' if Swiss Ephemeris unavailable (never shows ?-? again)
 
-Horoscope - dynamically date-aware:
-  - Daily: 3 variants per rasi, rotates deterministically by calendar date (hashlib seed)
-  - Weekly: actual date range in prediction header (e.g. '5-11 May 2026')
-  - Monthly: current month name prepended to prediction
-  - Daily scores jitter slightly per day (+/-0.5) for realism
-  - AI path (OpenAI): passes full date string + ISO week number for genuinely unique GPT content
-  - date_range fields now show real dates instead of 'Today / This Week / This Month'
+User tier system (backend):
+  - UserTier enum: free / premium / max / admin in user_schema.py
+  - UserInDB + UserPublic include user_tier field (default: free)
+  - user_repository: create() defaults user_tier=free, update_profile() syncs is_premium/is_admin
+  - New Firestore 'profiles' collection with list/add/delete endpoints at /user/profiles
+  - POST /user/profiles enforces tier limits: free=0, premium=2, max=5, admin=unlimited
+  - 403 Forbidden with upgrade message when limit exceeded
 
-Home page redesign - astrological features replace Quick Actions:
-  - REMOVED: Quick Actions grid (redundant with bottom nav bar)
-  - ADDED: Today's Cosmic Snapshot card - day lord, planet symbol, focus theme
-  - ADDED: Moon Phase card - live phase calculation from Julian Day, days to next event
-  - ADDED: Daily Mantra card - planet mantra for the day (108x chanting reminder)
-  - ADDED: Auspicious Times card - Brahma Muhurta, Abhijit Muhurta, Rahu Kaal per weekday
-  - ADDED: Your Chart card - moon sign, birth place, DOB pills + link to full Kundli
+Flutter - UserTier propagation:
+  - UserEntity: userTier field + UserTierX extension (label, maxProfiles, canAddProfiles)
+  - UserModel.fromJson(): parses user_tier string -> enum with fallback to free
+  - AuthRepositoryImpl: passes userTier through login/register
+  - SecureStorage: saves/loads user_tier; saveUser() accepts userTier param
+  - AuthBloc: _onCheck loads tier from storage; login/register save tier
+
+Settings page (Flutter):
+  - settings_page.dart: full page with Profile, Account, Astrology Preferences, About sections
+  - Profile header: avatar initial, name, email, tier badge with color coding
+  - Account section: upgrade banner for free users, plan details, notifications toggle
+  - Profiles section: My Profile, Add Profile (tier-gated), Switch Profile
+  - About section: version, privacy policy, terms, rate app, feedback
+  - Sign Out with confirmation dialog
+  - Home profile-menu (avatar tap) updated: Settings + Switch Profile + Upgrade Plan + Sign Out
+
+Pricing page (Flutter):
+  - pricing_page.dart: 3-tier comparison (Free/Premium/Max) with feature lists
+  - Premium: Rs.199/month, 2 profiles; Max: Rs.499/month, 5 profiles
+  - 'Most Popular' badge on Premium tier
+  - Subscribe buttons show demo dialog: 'Razorpay integration coming soon'
+
+Add Profile page (Flutter):
+  - add_profile_page.dart: name, relationship dropdown, gender selector, DOB picker,
+    TOB picker, place of birth field
+  - Form validation, save stub with success snackbar
+
+Switch Profile page (Flutter):
+  - switch_profile_page.dart: shows own profile (active), family profiles list
+  - Empty state with 'Add First Profile' CTA
+  - Upgrade prompt for free-tier users with 'View Plans' CTA
+
+Router + Shell:
+  - New routes: /settings, /pricing, /settings/add-profile, /settings/profiles
+  - Settings pages live outside ShellRoute (full-screen, no bottom nav)
+
+Web layout fix:
+  - shell_page.dart: on web wraps scaffold in ConstrainedBox(maxWidth: 430) on dark bg
+  - app_widgets.dart: PageLayout widget (kIsWeb-aware 430px cap) + kPageHPad = 16.0 constant
 "@
 
 $tmpFile = [System.IO.Path]::GetTempFileName()

@@ -131,40 +131,49 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onCheck(CheckAuthStatus e, Emitter<AuthState> emit) async {
     try {
       if (await storage.isLoggedIn()) {
-        final id       = await storage.getUserId()      ?? "";
-        final email    = await storage.getUserEmail()   ?? "";
-        final name     = await storage.getUserName()    ?? "";
-        final isAdmin  = await storage.getIsAdmin();
-        final dob      = await storage.getBirthDob();
-        final tob      = await storage.getBirthTob();
-        final place    = await storage.getBirthPlace();
-        final lat      = await storage.getBirthLat();
-        final lng      = await storage.getBirthLng();
-        final tz       = await storage.getBirthTimezone();
-        var   moonSign = await storage.getMoonSign();
+        final id        = await storage.getUserId()      ?? "";
+        final email     = await storage.getUserEmail()   ?? "";
+        final name      = await storage.getUserName()    ?? "";
+        final isAdmin   = await storage.getIsAdmin();
+        final tierStr   = await storage.getUserTier();
+        final tier      = UserTier.values.firstWhere(
+          (t) => t.name == tierStr, orElse: () => UserTier.free);
+        final dob       = await storage.getBirthDob();
+        final tob       = await storage.getBirthTob();
+        final place     = await storage.getBirthPlace();
+        final lat       = await storage.getBirthLat();
+        final lng       = await storage.getBirthLng();
+        final tz        = await storage.getBirthTimezone();
+        var   moonSign  = await storage.getMoonSign();
 
         // Emit quickly from local storage so UI shows immediately
         emit(AuthAuthenticated(UserEntity(
           id: id, email: email, fullName: name,
-          isPremium: false, isAdmin: isAdmin,
+          isPremium: tier != UserTier.free, isAdmin: isAdmin,
+          userTier: tier,
           dateOfBirth: dob, timeOfBirth: tob, placeOfBirth: place,
           birthLatitude: lat, birthLongitude: lng, birthTimezone: tz,
           moonSign: moonSign,
         )));
 
-        // If moon sign is missing but user has birth details, fetch it from
-        // the backend silently. The backend computes it from the user's
-        // stored birth details via Swiss Ephemeris.
+        // If moon sign is missing but user has birth details, fetch profile
+        // from the backend silently to get moon sign + latest tier.
         if (moonSign == null && dob != null && lat != null) {
           try {
             final profile = await remoteDs.fetchProfile();
             if (profile.moonSign != null && profile.moonSign!.isNotEmpty) {
               moonSign = profile.moonSign;
               await storage.saveBirthDetails(moonSign: moonSign);
-              // Re-emit with the freshly obtained moon sign
+              await storage.saveUser(
+                id: id, email: email, name: name,
+                isAdmin: profile.isAdmin,
+                userTier: profile.userTier.name,
+              );
+              // Re-emit with the freshly obtained moon sign + tier
               emit(AuthAuthenticated(UserEntity(
                 id: id, email: email, fullName: name,
                 isPremium: profile.isPremium, isAdmin: profile.isAdmin,
+                userTier: profile.userTier,
                 dateOfBirth: profile.dateOfBirth ?? dob,
                 timeOfBirth: profile.timeOfBirth ?? tob,
                 placeOfBirth: profile.placeOfBirth ?? place,
@@ -193,7 +202,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await storage.saveTokens(access: r.accessToken, refresh: r.refreshToken);
       await storage.saveUser(
           id: r.user.id, email: r.user.email, name: r.user.fullName,
-          isAdmin: r.user.isAdmin);
+          isAdmin: r.user.isAdmin, userTier: r.user.userTier.name);
       await storage.saveBirthDetails(
         dob:      r.user.dateOfBirth,
         tob:      r.user.timeOfBirth,
@@ -224,7 +233,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await storage.saveTokens(access: r.accessToken, refresh: r.refreshToken);
       await storage.saveUser(
           id: r.user.id, email: r.user.email, name: r.user.fullName,
-          isAdmin: r.user.isAdmin);
+          isAdmin: r.user.isAdmin, userTier: r.user.userTier.name);
       await storage.saveBirthDetails(
         dob:      r.user.dateOfBirth,
         tob:      r.user.timeOfBirth,
@@ -269,6 +278,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         fullName:       updated.fullName,
         isPremium:      updated.isPremium,
         isAdmin:        updated.isAdmin,
+        userTier:       updated.userTier,
         dateOfBirth:    updated.dateOfBirth,
         timeOfBirth:    updated.timeOfBirth,
         placeOfBirth:   updated.placeOfBirth,
@@ -296,6 +306,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       fullName:       current.user.fullName,
       isPremium:      current.user.isPremium,
       isAdmin:        current.user.isAdmin,
+      userTier:       current.user.userTier,
       dateOfBirth:    current.user.dateOfBirth,
       timeOfBirth:    current.user.timeOfBirth,
       placeOfBirth:   current.user.placeOfBirth,
